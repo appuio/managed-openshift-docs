@@ -1,0 +1,6 @@
+name: managed-openshift
+title: APPUiO Managed OpenShift for End-Users
+version: master
+start_page: ROOT:index.adoc
+nav:
+  - modules/ROOT/nav.adoc

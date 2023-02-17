@@ -1,0 +1,30 @@
+{
+    "pr_template": "- ${{TITLE}} (#${{NUMBER}})",
+    "categories": [
+        {
+            "title": "## ⚖️ Decisions",
+            "labels": ["decision"]
+        },
+        {
+            "title": "## 📕 Tutorials",
+            "labels": ["tutorial"]
+        },
+        {
+            "title": "## 🧾 Quality Requirements",
+            "labels": ["requirement/quality"]
+        },
+        {
+            "title": "## 📄 Functional Requirements",
+            "labels": ["requirement/functional"]
+        },
+        {
+            "title": "## 🛠️ Minor Changes",
+            "labels": ["change"]
+        },
+        {
+            "title": "## 🔗 Dependency Updates",
+            "labels": ["dependency"]
+        }
+    ],
+    "template": "${{CATEGORIZED_COUNT}} changes since ${{FROM_TAG}}\n\n${{CHANGELOG}}"
+}
