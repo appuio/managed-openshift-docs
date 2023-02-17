@@ -1,6 +1,6 @@
 = APPUiO Managed OpenShift for End-Users
 
-image::appuio-managed.svg[APPUiO,400,link=https://www.appuio.ch/offering/managed/]
+image::appuio-managed.svg[APPUiO,400,link=https://www.appuio.ch/offering/managed/,window="_blank"]
 
 Welcome to the APPUiO Managed OpenShift for End-Users documentation site.
 
