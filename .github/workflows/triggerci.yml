@@ -3,14 +3,14 @@ name: Trigger Antora GitLab CI Job
 on:
   push:
     branches:
-    - master
+      - main
 
 jobs:
   trigger:
     name: Trigger
     runs-on: ubuntu-latest
     steps:
-    - name: Trigger Job
-      uses: wei/curl@master
-      with:
-        args: ${{ secrets.GITLABCI_TRIGGER_CURL }}
+      - name: Trigger Job
+        uses: wei/curl@master
+        with:
+          args: ${{ secrets.GITLABCI_TRIGGER_CURL }}
