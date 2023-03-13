@@ -1,0 +1,109 @@
+= Tutorial: Access application logs with Lokistack
+
+This tutorial explains how to view the logs of an application on Openshift.
+
+
+== Requirements
+
+To follow this guide, please make sure that you have the following tools installed:
+
+`oc`:: You can download the OpenShift command directly from {product}, selecting the help menu (marked as a question mark) and selecting the "Command line tools" entry
+
+
+== Step 1: Deploy Fortune application
+
+. Create a new namespace called `vshn-demo-fortune`
++
+[source,shell]
+--
+oc create ns vshn-demo-fortune
+--
+
+. Create Fortune application manifest
++
+.Manifest for Fortune application
+[source,yaml]
+--
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fortune-cookie
+  name: fortune-cookie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortune-cookie
+  template:
+    metadata:
+      labels:
+        app: fortune-cookie
+    spec:
+      containers:
+      - image: registry.gitlab.com/vshn/applications/fortune-go:latest
+        imagePullPolicy: IfNotPresent
+        name: fortune-cookie
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: fortune-cookie
+  name: fortune-cookie
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+    name: web
+  selector:
+    app: fortune-cookie
+  type: ClusterIP
+---
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  annotations:
+    cert-manager.io/cluster-issuer: letsencrypt-production
+  name: fortune-cookie
+spec:
+  rules:
+  - host: <INSERT_URL_FOR_FORTUNE_APP>
+    http:
+      paths:
+      - pathType: Prefix
+        path: /
+        backend:
+          service:
+            name: fortune-cookie
+            port:
+              number: 8080
+  tls:
+  - hosts:
+    - <INSERT_URL_FOR_FORTUNE_APP>
+    secretName: fortune-cookie-tls
+--
+
+. Deploy Fortune application manifest
++
+[source,shell]
+--
+oc -n vshn-demo-fortune apply -f fortune.yaml
+--
+
+
+== Step 2: View Fortune application logs
+
+* The current / live logs can be viewed from the logs tab of the pod
++
+image::logging/fortune-podlogs.png[]
+
+* To access the aggregated logs from all pods, change to the aggregated logs tab
++
+[source]
+--
+{ kubernetes_container_name="fortune-cookie" } | json
+--
++
+image::logging/fortune-aggregated.png[]
