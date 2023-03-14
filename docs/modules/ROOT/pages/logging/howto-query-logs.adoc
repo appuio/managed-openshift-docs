@@ -1,4 +1,4 @@
-= HowTo: Query logs
+= Query application logs
 
 Open the console in the `Administrator` view and switch to `Logs` in the `Observe` section.
 You can query the logs using Grafanas https://grafana.com/docs/loki/latest/logql[LogQL].
@@ -14,7 +14,7 @@ image::logging/namespace-logs.png[]
 +
 [source]
 --
-{ kubernetes_namespace_name="vshn-demo-fortune" } | json
+{ kubernetes_namespace_name="demo-fortune" } | json
 --
 
 

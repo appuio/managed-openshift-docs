@@ -1,4 +1,4 @@
-= Tutorial: Access application logs with Lokistack
+= Getting started with logging: Lokistack
 
 This tutorial explains how to view the logs of an application on Openshift.
 
@@ -7,17 +7,23 @@ This tutorial explains how to view the logs of an application on Openshift.
 
 To follow this guide, please make sure that you have the following tools installed:
 
-`oc`:: You can download the OpenShift command directly from {product}, selecting the help menu (marked as a question mark) and selecting the "Command line tools" entry
+`oc`:: You can download the OpenShift command directly from OpenShift Web Console. Open the help menu (marked as a question mark at the top right) and select the "Command line tools" entry.
 
 
 == Step 1: Deploy Fortune application
 
-. Create a new namespace called `vshn-demo-fortune`
+. Create a new namespace called `demo-fortune`
 +
 [source,shell]
 --
-oc create ns vshn-demo-fortune
+oc new-project demo-fortune
 --
++
+[TIP]
+====
+If you get an error that the namespace already exists, please pick another name and try again.
+We recommend prefixing the name with the name of your organization to minimize potential for name collisions.
+====
 
 . Create Fortune application manifest
 +
@@ -60,36 +66,20 @@ spec:
   selector:
     app: fortune-cookie
   type: ClusterIP
----
-apiVersion: networking.k8s.io/v1
-kind: Ingress
-metadata:
-  annotations:
-    cert-manager.io/cluster-issuer: letsencrypt-production
-  name: fortune-cookie
-spec:
-  rules:
-  - host: <INSERT_URL_FOR_FORTUNE_APP>
-    http:
-      paths:
-      - pathType: Prefix
-        path: /
-        backend:
-          service:
-            name: fortune-cookie
-            port:
-              number: 8080
-  tls:
-  - hosts:
-    - <INSERT_URL_FOR_FORTUNE_APP>
-    secretName: fortune-cookie-tls
 --
 
 . Deploy Fortune application manifest
 +
 [source,shell]
 --
-oc -n vshn-demo-fortune apply -f fortune.yaml
+oc apply -f fortune.yaml
+--
+
+. Expose Fortune application
++
+[source,shell]
+--
+oc expose svc/fortune-cookie
 --
 
 
