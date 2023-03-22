@@ -1,0 +1,99 @@
+= Getting started with logging: Lokistack
+
+This tutorial explains how to view the logs of an application on Openshift.
+
+
+== Requirements
+
+To follow this guide, please make sure that you have the following tools installed:
+
+`oc`:: You can download the OpenShift command directly from OpenShift Web Console. Open the help menu (marked as a question mark at the top right) and select the "Command line tools" entry.
+
+
+== Step 1: Deploy Fortune application
+
+. Create a new namespace called `demo-fortune`
++
+[source,shell]
+--
+oc new-project demo-fortune
+--
++
+[TIP]
+====
+If you get an error that the namespace already exists, please pick another name and try again.
+We recommend prefixing the name with the name of your organization to minimize potential for name collisions.
+====
+
+. Create Fortune application manifest
++
+.Manifest for Fortune application
+[source,yaml]
+--
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    app: fortune-cookie
+  name: fortune-cookie
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortune-cookie
+  template:
+    metadata:
+      labels:
+        app: fortune-cookie
+    spec:
+      containers:
+      - image: registry.gitlab.com/vshn/applications/fortune-go:latest
+        imagePullPolicy: IfNotPresent
+        name: fortune-cookie
+---
+apiVersion: v1
+kind: Service
+metadata:
+  labels:
+    app: fortune-cookie
+  name: fortune-cookie
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+    name: web
+  selector:
+    app: fortune-cookie
+  type: ClusterIP
+--
+
+. Deploy Fortune application manifest
++
+[source,shell]
+--
+oc apply -f fortune.yaml
+--
+
+. Expose Fortune application
++
+[source,shell]
+--
+oc expose svc/fortune-cookie
+--
+
+
+== Step 2: View Fortune application logs
+
+* The current / live logs can be viewed from the logs tab of the pod
++
+image::logging/fortune-podlogs.png[]
+
+* To access the aggregated logs from all pods, change to the aggregated logs tab
++
+[source]
+--
+{ kubernetes_container_name="fortune-cookie" } | json
+--
++
+image::logging/fortune-aggregated.png[]

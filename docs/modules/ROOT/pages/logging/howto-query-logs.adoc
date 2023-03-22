@@ -1,0 +1,32 @@
+= Query application logs
+
+Open the console in the `Administrator` view and switch to `Logs` in the `Observe` section.
+You can query the logs using Grafanas https://grafana.com/docs/loki/latest/logql[LogQL].
+
+
+== View namespace logs
+
+* View logs by selecting namespace in the UI
++
+image::logging/namespace-logs.png[]
+
+* Or use the query language
++
+[source]
+--
+{ kubernetes_namespace_name="demo-fortune" } | json
+--
+
+
+== View error logs
+
+* Filter by logtype `error` in the UI
++
+image::logging/error-logs.png[]
+
+* Or use the query language
++
+[source]
+--
+{ kubernetes_namespace_name="syn-kyverno" } | json | level=~"error|err|eror"
+--

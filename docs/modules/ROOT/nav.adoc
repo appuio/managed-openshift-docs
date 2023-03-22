@@ -1,1 +1,5 @@
 * xref:index.adoc[Home]
+
+** xref:logging/index.adoc[Logging]
+*** xref:logging/tutorial-lokistack.adoc[Getting Started]
+*** xref:logging/howto-query-logs.adoc[]
