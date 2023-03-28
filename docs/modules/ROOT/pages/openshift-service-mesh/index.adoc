@@ -1,0 +1,9 @@
+= OpenShift Service Mesh
+
+RedHat OpenShift Service Mesh (OSSM) is a tool for traffic management, tracing, service authentication and access policy enforcement within the OpenShift cluster. It is based on istio, kiali, and jaeger.
+
+== Official Documentation
+
+* https://docs.openshift.com/container-platform/latest/logging/cluster-logging.htmlhttps://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-about.html[OpenShift Service Mesh]
+* https://docs.openshift.com/container-platform/latest/logging/cluster-logging-external.htmlhttps://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-smcp.html[Creating Service Mesh Control Plane]
+* https://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-mesh.html[Adding workloads to a service mesh]
