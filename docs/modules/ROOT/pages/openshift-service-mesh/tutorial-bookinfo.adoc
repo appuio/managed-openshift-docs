@@ -10,7 +10,7 @@ To follow this guide, please make sure that you have the following tools install
 `oc`:: You can download the OpenShift command directly from OpenShift Web Console. Open the help menu (marked as a question mark at the top right) and select the "Command line tools" entry.
 
 
-== Step 1: Creating the ServiceMeshControlPlane (requires cluster-admin)
+== Step 1: Creating the ServiceMeshControlPlane
 
 The ServiceMeshControlPlane manages all services that are part of a service mesh.
 Creating multiple control planes allows for creating multiple independent service meshes, for example in a multi-tenancy environment.
@@ -32,7 +32,7 @@ We recommend prefixing the name with the name of your organization to minimize p
 +
 [source,shell]
 --
-oc create --as cluster-admin -n demo-ossm-controlplane -f - <<EOF
+oc create -n demo-ossm-controlplane -f - <<EOF
 apiVersion: maistra.io/v2
 kind: ServiceMeshControlPlane
 metadata:
@@ -89,7 +89,7 @@ oc new-project demo-ossm-bookinfo
 +
 [source,shell]
 --
-oc create --as cluster-admin -n demo-ossm-controlplane -f - <<EOF
+oc create -n demo-ossm-controlplane -f - <<EOF
 apiVersion: maistra.io/v1
 kind: ServiceMeshMemberRoll
 metadata:
