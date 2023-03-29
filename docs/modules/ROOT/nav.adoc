@@ -3,3 +3,6 @@
 ** xref:logging/index.adoc[Logging]
 *** xref:logging/tutorial-lokistack.adoc[Getting Started]
 *** xref:logging/howto-query-logs.adoc[]
+
+** xref:openshift-service-mesh/index.adoc[OpenShift Service Mesh]
+*** xref:openshift-service-mesh/tutorial-bookinfo.adoc[Getting Started]

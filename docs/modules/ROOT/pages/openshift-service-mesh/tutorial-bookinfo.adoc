@@ -1,4 +1,4 @@
-= Getting started with OSSM
+= Getting started with OpenShift Service Mesh
 
 This tutorial explains how to use the OpenShift Service Mesh to manage the bookinfo demo application.
 
