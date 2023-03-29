@@ -12,7 +12,7 @@ To follow this guide, please make sure that you have the following tools install
 
 == Step 1: Creating the ServiceMeshControlPlane (requires cluster-admin)
 
-The ServiceMeshControlPlane manages all services that are part of a service mesh. Creating multiple control planes allows for creating multiple independent service meshes, e.g. in a multi-tenancy environment.
+The ServiceMeshControlPlane manages all services that are part of a service mesh. Creating multiple control planes allows for creating multiple independent service meshes, for example in a multi-tenancy environment.
 
 . Create a new namespace called `demo-ossm-controlplane`
 +
@@ -109,7 +109,7 @@ A status of `Configured` indicates that installation was successful.
 
 == Step 3: Deploying the bookinfo demo application
 
-`bookinfo` is a small sample application that is built from microservices. It displays information about a book. The main `productpage` service calls other microservices to collect information and reviews pertaining to a book.
+`bookinfo` is a small sample application which is built from microservices. It displays information about a book. The main `productpage` service calls other microservices to collect information and reviews pertaining to a book.
 
 . Deploy the Bookinfo application from its manifest:
 +
@@ -140,7 +140,7 @@ oc get pods -n demo-ossm-bookinfo
 --
 
 == Step 4: Enable sidecar injection
-To avoid interference between different operators, the OpenShift Service Mesh controller will not touch any deployments that aren't annotated a certain way. We need to add this annotation to all our deployments to allow the controller to inject the necessary sidecars.
+To avoid interference between different operators, the OpenShift Service Mesh controller refuses to touch any deployments that aren't annotated a certain way. We need to add this annotation to all our deployments to allow the controller to inject the necessary sidecars.
 
 . Check all the deployments of our application
 +
@@ -155,6 +155,8 @@ oc get deployment -n demo-ossm-bookinfo
 --
 oc get deployment -n demo-ossm-bookinfo -o NAME | while read line ; do oc annotate "$line" -n demo-ossm-bookinfo "sidecar.istio.io/inject=true" ; done
 --
++
+`note`:: The bookinfo application technically already has sidecar injection enabled by default. However, the step is highlighted here anyways, since it's necessary on any custom workloads.
 
 . View the bookinfo application in your browser
 +
@@ -176,15 +178,43 @@ while true ; do curl "http://$GATEWAY_URL/productpage" > /dev/null ; sleep 1 ; d
 == Step 5: Explore your microservices using the tools provided by OpenShift Service Mesh
 
 . Navigate to kiali
-+
-Find the URL using this command:
+.. Find the URL using this command:
 +
 [source,bash]
 --
 oc -n demo-ossm-controlplane get route kiali -o jsonpath='{.spec.host}'
 --
-. Click on "Log In with OpenShift" to log into Kiali
-. Navigate to `Graph` to see an overview of your service mesh.
+
+.. Click on "Log In with OpenShift" to log into Kiali
+
+.. Navigate to `Graph` to see an overview of your service mesh.
 +
 image::openshift-service-mesh/graph.png[]
-. For more information on Kiali and its features, see https://kiali.io/docs/features/[the Kiali documentation].
+
+.. For more information on Kiali and its features, see https://kiali.io/docs/features/[the Kiali documentation].
+
+
+. Navigate to Jaeger
+.. Find the URL using this command:
++
+[source,bash]
+--
+oc -n demo-ossm-controlplane get route jaeger -o jsonpath='{.spec.host}'
+--
+.. Click on "Log In with OpenShift" to log into Jaeger
+.. Select a service in the drop-down (such as the `productpage` service) and click on `Find Traces` to query for your service's traces
++
+image::openshift-service-mesh/traces.png[]
+
+.. For more information on Jaeger and its features, see https://www.jaegertracing.io/docs/[the Jaeger documentation].
+
+
+== Step 6: Cleanup
+
+Once you no longer need your demo deployment of the `bookinfo` application and its `ServiceMeshControlPlane`, clean it up by deleting the corresponding projects:
+
+[source,bash]
+--
+oc delete project demo-ossm-bookinfo
+oc delete project demo-ossm-controlplane
+--

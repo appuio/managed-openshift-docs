@@ -9,7 +9,7 @@ antora_cmd  ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}":/antora vshn/
 antora_opts ?= --cache-dir=.cache/antora
 preview_cmd ?= $(docker_cmd) run --rm --publish 35729:35729 --publish 2020:2020 --volume "${PWD}":/preview/antora vshn/antora-preview:3.1.1.1 --antora=docs --style=appuio
 
-vale_cmd ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}"/docs/modules:/pages vshn/vale:2.10.5.1 --minAlertLevel=error /pages
+vale_cmd ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}"/docs/modules:/pages vshn/vale:2.1.1 --minAlertLevel=error /pages
 
 UNAME := $(shell uname)
 ifeq ($(UNAME), Linux)

@@ -1,9 +1,40 @@
 = OpenShift Service Mesh
 
-RedHat OpenShift Service Mesh (OSSM) is a tool for traffic management, tracing, service authentication and access policy enforcement within the OpenShift cluster. It is based on istio, kiali, and jaeger.
+RedHat OpenShift Service Mesh is a tool for traffic management, tracing, service authentication and access policy enforcement within the OpenShift cluster. It's based on Istio, Kiali, and Jaeger.
+
+
+== Use cases
+
+=== Traffic management
+
+OpenShift Service Mesh can be used to manage in-cluster traffic between services and allows for centralized configuration of traffic patterns such as load balancing, rate limiting or circuit breakers.
+
+* https://developers.redhat.com/blog/2018/03/27/Istio-circuit-breaker-when-failure-is-an-option#the_istio_circuit_breaker_in_action[Circuit breakers in OpenShift Service Mesh]
+
+=== Deployment patterns
+
+A service mesh enables continuous deployment patterns based on automated testing and traffic switchover, such as canary deployments or dark launches.
+
+* https://istio.io/latest/blog/2017/0.1-canary/[Canary deployments using Istio]
+* https://redhat-scholars.github.io/istio-tutorial/istio-tutorial/1.9.x/4advanced-routerules.html[Advanced routing in Istio - examples]
+
+=== Observability and Distributed Tracing
+
+OpenShift Service Mesh comes with Jaeger for distributed tracing. Tracing is an important tool to understand the behaviour of a complex microservice architecture under load, as it allows identifying bottlenecks and sources of latency.
+
+* https://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-observability.html#ossm-accessing-jaeger-console_observability[Accessing Jaeger in OpenShift Service Mesh]
+
+=== Authentication and Authorization
+
+Using OpenShift Service Mesh, you can leverage Istio's capabilities for authentication and authorization between services or between the user and your application.
+
+* https://istio.io/latest/docs/concepts/security/[Documentation on Istio's security features]
 
 == Official Documentation
 
 * https://docs.openshift.com/container-platform/latest/logging/cluster-logging.htmlhttps://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-about.html[OpenShift Service Mesh]
-* https://docs.openshift.com/container-platform/latest/logging/cluster-logging-external.htmlhttps://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-smcp.html[Creating Service Mesh Control Plane]
-* https://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-mesh.html[Adding workloads to a service mesh]
+** https://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-vs-community.html[Differences between OpenShift Service Mesh and plain Istio]
+** https://docs.openshift.com/container-platform/latest/logging/cluster-logging-external.htmlhttps://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-smcp.html[Creating Service Mesh Control Plane]
+** https://docs.openshift.com/container-platform/4.12/service_mesh/v2x/ossm-create-mesh.html[Adding workloads to a service mesh]
+* https://istio.io/latest/docs/[Istio documentation]
+* https://kiali.io/docs/features/[Kiali user documentation]
