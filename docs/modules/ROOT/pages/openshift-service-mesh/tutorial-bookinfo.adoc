@@ -12,7 +12,8 @@ To follow this guide, please make sure that you have the following tools install
 
 == Step 1: Creating the ServiceMeshControlPlane (requires cluster-admin)
 
-The ServiceMeshControlPlane manages all services that are part of a service mesh. Creating multiple control planes allows for creating multiple independent service meshes, for example in a multi-tenancy environment.
+The ServiceMeshControlPlane manages all services that are part of a service mesh.
+Creating multiple control planes allows for creating multiple independent service meshes, for example in a multi-tenancy environment.
 
 . Create a new namespace called `demo-ossm-controlplane`
 +
@@ -74,7 +75,9 @@ You should see your new ServiceMeshControlPlane with status `ComponentsReady`.
 
 == Step 2: Creating the Service Mesh member roll
 
-The ServiceMeshMemberRoll associates OpenShift projects with ServiceMeshControlPlanes. Each project can belong to only one Control Plane, but one Control Plane can manage multiple projects. The ServiceMeshControlPlane can only manage services in projects that are associated with it via a ServiceMeshMemberRoll.
+The ServiceMeshMemberRoll associates OpenShift projects with ServiceMeshControlPlanes.
+Each project can belong to only one Control Plane, but one Control Plane can manage multiple projects.
+The ServiceMeshControlPlane can only manage services in projects that are associated with it via a ServiceMeshMemberRoll.
 
 . Create a new project to contain the application that shall be part of the service mesh
 +
@@ -109,7 +112,9 @@ A status of `Configured` indicates that installation was successful.
 
 == Step 3: Deploying the bookinfo demo application
 
-`bookinfo` is a small sample application which is built from microservices. It displays information about a book. The main `productpage` service calls other microservices to collect information and reviews pertaining to a book.
+`bookinfo` is a small sample application which is built from microservices.
+It displays information about a book.
+The main `productpage` service calls other microservices to collect information and reviews pertaining to a book.
 
 . Deploy the Bookinfo application from its manifest:
 +
@@ -140,7 +145,8 @@ oc get pods -n demo-ossm-bookinfo
 --
 
 == Step 4: Enable sidecar injection
-To avoid interference between different operators, the OpenShift Service Mesh controller refuses to touch any deployments that aren't annotated a certain way. We need to add this annotation to all our deployments to allow the controller to inject the necessary sidecars.
+To avoid interference between different operators, the OpenShift Service Mesh controller refuses to touch any deployments that aren't annotated a certain way.
+We need to add this annotation to all our deployments to allow the controller to inject the necessary sidecars.
 
 . Check all the deployments of our application
 +
@@ -156,7 +162,8 @@ oc get deployment -n demo-ossm-bookinfo
 oc get deployment -n demo-ossm-bookinfo -o NAME | while read line ; do oc annotate "$line" -n demo-ossm-bookinfo "sidecar.istio.io/inject=true" ; done
 --
 +
-`note`:: The bookinfo application technically already has sidecar injection enabled by default. However, the step is highlighted here anyways, since it's necessary on any custom workloads.
+NOTE: The bookinfo application technically already has sidecar injection enabled by default.
+However, the step is highlighted here anyways, since it's necessary on any custom workloads.
 
 . View the bookinfo application in your browser
 +
