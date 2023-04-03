@@ -162,8 +162,11 @@ oc get deployment -n demo-ossm-bookinfo
 oc get deployment -n demo-ossm-bookinfo -o NAME | while read line ; do oc annotate "$line" -n demo-ossm-bookinfo "sidecar.istio.io/inject=true" ; done
 --
 +
-NOTE: The bookinfo application technically already has sidecar injection enabled by default.
+[NOTE]
+====
+The bookinfo application technically already has sidecar injection enabled by default.
 However, the step is highlighted here anyways, since it's necessary on any custom workloads.
+====
 
 . View the bookinfo application in your browser
 +
