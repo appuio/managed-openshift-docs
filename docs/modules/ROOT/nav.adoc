@@ -6,3 +6,4 @@
 
 ** xref:openshift-service-mesh/index.adoc[OpenShift Service Mesh]
 *** xref:openshift-service-mesh/tutorial-bookinfo.adoc[Getting Started]
+*** xref:openshift-service-mesh/howto-ha-controlplane.adoc[HA control plane]
