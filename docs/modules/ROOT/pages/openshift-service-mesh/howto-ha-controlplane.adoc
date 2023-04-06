@@ -1,0 +1,42 @@
+= Making a Service Mesh Control Plane highly available
+
+This how-to assumes that you've already xref:openshift-service-mesh/tutorial-bookinfo.adoc#_step_1_creating_the_servicemeshcontrolplane[created a service mesh control plane].
+
+== Configuring multiple replicas for the control plane components
+
+Edit the ServiceMeshControlPlane which you want to make highly available and set the following configurations:
+
+[source,yaml]
+----
+spec:
+  gateways:
+  egress:
+    runtime:
+      deployment:
+        replicas: 2 <1>
+  ingress:
+    runtime:
+      deployment:
+        replicas: 2 <2>
+  runtime:
+    components:
+      pilot:
+        deployment:
+          replicas: 2 <3>
+----
+<1> Configure the default egress gateway to have two replicas
+<2> Configure the default ingress gateway to have two replicas
+<3> Configure the `istiod` deployment to have two replicas
+
+== Advantages of having multiple replicas for the control plane components
+
+Configuring two or more replicas for the default ingress and egress gateway and the `istiod` deployment will minimize traffic interruptions during rolling restarts of control plane components.
+
+Such restarts can happen at any time due to version updates of the OpenShift Service Mesh installation or during cluster maintenance.
+
+So far, our testing has shown error rates of <0.05% (reported in Kiali) with a generated load of approximately 50 QPS on the "bookinfo" demo application when a rolling restart is triggered for the ingress gateway if it's configured with two replicas.
+However, regardless of the reported error rate in the service mesh, we've only observed successful responses (http code 200) in the client software used to generate the load.
+
+As far as we were able to determine, the requests which are reported as failing in the service mesh are automatically retried, since we've seen some correlation between the reported request error rate in the service mesh and the fraction of requests in the long tail of the response time distribution on the client.
+
+NOTE: We've performed our testing by accessing the service mesh ingress gateway through the OpenShift ingress router.
