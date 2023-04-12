@@ -34,9 +34,9 @@ Using OpenShift Service Mesh, you can leverage Istio's capabilities for authenti
 
 == Official Documentation
 
-* https://docs.openshift.com/container-platform/latest/logging/cluster-logging.htmlhttps://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-about.html[OpenShift Service Mesh]
+* https://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-about.html[OpenShift Service Mesh]
 ** https://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-vs-community.html[Differences between OpenShift Service Mesh and plain Istio]
-** https://docs.openshift.com/container-platform/latest/logging/cluster-logging-external.htmlhttps://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-create-smcp.html[Creating Service Mesh Control Plane]
+** https://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-create-smcp.html[Creating Service Mesh Control Plane]
 ** https://docs.openshift.com/container-platform/latest/service_mesh/v2x/ossm-create-mesh.html[Adding workloads to a service mesh]
 * https://istio.io/latest/docs/[Istio documentation]
 * https://kiali.io/docs/features/[Kiali user documentation]
