@@ -4,6 +4,9 @@
 *** xref:logging/tutorial-lokistack.adoc[Getting Started]
 *** xref:logging/howto-query-logs.adoc[]
 
+** Ingress
+*** xref:ingress/xff-configuration.adoc[]
+
 ** xref:openshift-service-mesh/index.adoc[OpenShift Service Mesh]
 *** xref:openshift-service-mesh/tutorial-bookinfo.adoc[Getting Started]
 *** xref:openshift-service-mesh/howto-ha-controlplane.adoc[HA control plane]

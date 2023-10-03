@@ -5,9 +5,9 @@ web_dir := ./_public
 docker_cmd  ?= docker
 docker_opts ?= --rm --tty --user "$$(id -u)"
 
-antora_cmd  ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}":/antora vshn/antora:3.0.0
+antora_cmd  ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}":/antora ghcr.io/vshn/antora:3.0.0
 antora_opts ?= --cache-dir=.cache/antora
-preview_cmd ?= $(docker_cmd) run --rm --publish 35729:35729 --publish 2020:2020 --volume "${PWD}":/preview/antora vshn/antora-preview:3.1.1.1 --antora=docs --style=appuio
+preview_cmd ?= $(docker_cmd) run --rm --publish 35729:35729 --publish 2020:2020 --volume "${PWD}":/preview/antora ghcr.io/vshn/antora-preview:3.1.2.3 --antora=docs --style=appuio
 
 vale_cmd ?= $(docker_cmd) run $(docker_opts) --volume "$${PWD}"/docs/modules:/pages vshn/vale:2.1.1 --minAlertLevel=error /pages
 

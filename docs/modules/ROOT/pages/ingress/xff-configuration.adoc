@@ -1,0 +1,29 @@
+= Configuring X-Forwarded-For handling
+
+This how-to explains how to customize how the forwarding headers (`Forwarded` and `X-Forwarded-For`) are handled by the OpenShift ingress router on a per-route basis. 
+
+== Possible behaviours
+
+`append`:: By default, the OpenShift router is configured to append the headers to any existing headers.
+If `Forwarded` and `X-Forwarded-For` headers are already present when the OpenShift router receives a request, the existing values are preserved, and new values are appended by the OpenShift router.
+`replace`:: If forwarded header handling is set to `replace`, any existing forwarded headers are discarded.
+Only the headers set by the OpenShift router will be available.
+`never`:: If forwarded header handling is set to `never`, the OpenShift router will never set these headers, and leave any existing headers untouched.
+`if-none`:: If forwarded header handling is set to `if-none`, the OpenShift router will only set the headers if they're not already present.
+If any headers are present, they're left unchanged.
+
+== Annotating the route
+
+Forwarded header handling is configured by annotating the `Route` object.
+
+[source,console]
+----
+oc annotate route my_route haproxy.router.openshift.io/set-forwarded-headers="replace"
+----
+
+To change the forwarded header handling back to default, simply remove the annotation:
+
+[source,console]
+----
+oc annotate route my_route haproxy.router.openshift.io/set-forwarded-headers-
+----
