@@ -1,0 +1,104 @@
+= Setting up an ArgoCD instance
+
+This how-to explains how to create a new ArgoCD instance on your cluster, leveraging the ArgoCD operator which comes preinstalled on APPUiO Managed OpenShift clusters.
+
+== Requirements
+
+You will need admin access to the cluster on which you want to deploy ArgoCD.
+
+Furthermore, this how-to assumes you have the following tools installed:
+
+`oc`:: You can download the OpenShift command directly from OpenShift Web Console. Open the help menu (marked as a question mark at the top right) and select the "Command line tools" entry.
+
+
+== Cluster Scope vs. Namespace Scope
+By default, an ArgoCD instance will be able to manage all resources within the same namespace it's deployed in, making it namespace scoped.
+This allows for easy setup of small-scope GitOps projects.
+
+However, ArgoCD is also capable of managing resources across multiple namespaces and cluster-scoped resources.
+To accomplish this, an ArgoCD instance needs to be registered as cluster scoped in the VSHN-managed ArgoCD operator.
+
+=== Requesting a Cluster Scope ArgoCD instance
+If you need to manage resources across multiple namespaces with the same ArgoCD instance, or you need to manage cluster-scope resources, you will need to request a cluster scope instance.
+
+Create a Service Desk Ticket with the following information:
+* State that you need a cluster-scope ArgoCD instance
+* Include the *namespace name* in which your ArgoCD instance will be deployed
+
+VSHN will register the provided namespace to allow for a cluster scope ArgoCD instance.
+Once that's complete, you can set up your ArgoCD instance as described below; it will automatically be cluster scoped.
+
+== Setting up an ArgoCD instance
+
+Thanks to the ArgoCD operator, new ArgoCD instances can easily be set up by deploying an `argocd` manifest.
+
+. Create the namespace for ArgoCD, or select it if it already exists
++
+[source,shell]
+--
+oc new-project my-argocd-namespace
+--
++
+[source,shell]
+--
+oc project my-argocd-namespace
+--
+
+. Create ArgoCD manifest
++
+.Manifest for ArgoCD instance `argocd.yaml`
+[source,yaml]
+--
+apiVersion: argoproj.io/v1beta1
+kind: ArgoCD
+metadata:
+  name: my-argocd
+spec:
+  applicationInstanceLabelKey: mycompany.com/appname <1>
+--
+<1> The `applicationInstanceLabelKey` is the name of a label, which your ArgoCD instance will use to keep track of the resources it manages.
+**You must configure this label key and use a unique name for it**.
++
+IMPORTANT: The default label key is already in use by the VSHN-managed platform ArgoCD instance.
+Using the same label key in your instance might lead to deletion of important resources.
+
+. Customize the ArgoCD manifest to suit your needs, as per the https://argocd-operator.readthedocs.io/en/latest/reference/argocd/[upstream reference documentation].
+
+. Deploy the ArgoCD manifest
++
+[source,shell]
+--
+oc apply -f argocd.yaml --as cluster-admin
+--
+
+. Verify the ArgoCD deployment
++
+[source,shell]
+--
+oc get pods
+--
++
+You should see a number of pods starting up for your ArgoCD instance, including the ArgoCD server, application controller, and repo server.
+The exact constellation of pods depends on your configuration.
+
+== Accessing the ArgoCD UI
+
+The ArgoCD UI is available at the ArgoCD server service.
+
+. Retrieve the admin password from the initial password secret (substituting the appropriate name for your ArgoCD instance):
++
+[source,shell]
+--
+oc get secret my-argocd-cluster -ojsonpath='{.data.admin\.password}' | base64 -d
+--
+
+. Port-forward the server service (substituting the appropriate name for your ArgoCD instance):
++
+[source,shell]
+--
+oc port-forward service/my-argocd-server 8080:80
+--
+
+. Access ArgoCD using your browser at http://localhost:8080
+
+. Log in with user `admin` and the password retrieved earlier
