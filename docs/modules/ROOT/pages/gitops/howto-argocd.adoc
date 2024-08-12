@@ -18,14 +18,14 @@ This allows for easy setup of small-scope GitOps projects.
 However, ArgoCD is also capable of managing resources across multiple namespaces and cluster-scoped resources.
 To accomplish this, an ArgoCD instance needs to be registered as cluster scoped in the VSHN-managed ArgoCD operator.
 
-=== Requesting a Cluster Scope ArgoCD instance
-If you need to manage resources across multiple namespaces with the same ArgoCD instance, or you need to manage cluster-scope resources, you will need to request a cluster scope instance.
+=== Requesting a Cluster-Scoped ArgoCD instance
+If you need to manage resources across multiple namespaces with the same ArgoCD instance, or you need to manage cluster-scoped resources, you will need to request a cluster-scoped instance.
 
 Create a Service Desk Ticket with the following information:
-* State that you need a cluster-scope ArgoCD instance
+* State that you need a cluster-scoped ArgoCD instance
 * Include the *namespace name* in which your ArgoCD instance will be deployed
 
-VSHN will register the provided namespace to allow for a cluster scope ArgoCD instance.
+VSHN will register the provided namespace to allow for a cluster-scoped ArgoCD instance.
 Once that's complete, you can set up your ArgoCD instance as described below; it will automatically be cluster scoped.
 
 == Setting up an ArgoCD instance
