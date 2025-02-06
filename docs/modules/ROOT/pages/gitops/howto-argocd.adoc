@@ -22,6 +22,7 @@ To accomplish this, an ArgoCD instance needs to be registered as cluster scoped 
 If you need to manage resources across multiple namespaces with the same ArgoCD instance, or you need to manage cluster-scoped resources, you will need to request a cluster-scoped instance.
 
 Create a Service Desk Ticket with the following information:
+
 * State that you need a cluster-scoped ArgoCD instance
 * Include the *namespace name* in which your ArgoCD instance will be deployed
 
