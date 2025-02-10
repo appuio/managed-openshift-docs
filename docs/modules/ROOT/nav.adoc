@@ -1,7 +1,8 @@
 * xref:index.adoc[Home]
 
-** Cilium
-*** xref:cilium/network-policies.adoc[Network Policies]
+** Network
+*** xref:network/network-policies.adoc[Network Policies]
+*** xref:network/cilium-cluster-mesh.adoc[Cilium Cluster Mesh FAQ]
 
 ** xref:logging/index.adoc[Logging]
 *** xref:logging/tutorial-lokistack.adoc[Getting Started]
