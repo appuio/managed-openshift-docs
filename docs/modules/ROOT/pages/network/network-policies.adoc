@@ -1,0 +1,37 @@
+= Network Policies
+
+As a Kubernetes Network Plugin plugin Cilium integrates transparently with standard Kubernetes https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#networkpolicy-v1-networking-k8s-io[`NetworkPolicies`].
+Cilium also provides extended configuration though https://docs.cilium.io/en/latest/network/kubernetes/policy/#ciliumnetworkpolicy[`CiliumNetworkPolicies`].
+Extended policies may allow you to configure L3, L4 and L7 network policies.
+Those extended policies are not usually needed and should be avoided if not necessary as they might introduce performance or stability issues.
+
+You can read about network policies here via https://kubernetes.io/docs/concepts/services-networking/network-policies/[upstream documentation].
+
+You can find examples on how to use the extended functionality of cilium network policies https://docs.cilium.io/en/latest/network/kubernetes/policy/#ciliumnetworkpolicy[here].
+
+== Default Network Policies
+
+VSHN Managed OpenShift isolates namespaces by default. It does this by auto-generating two network policies.
+
+[source,shell]
+--
+kubectl get networkpolicy
+--
+
+[IMPORTANT]
+====
+Network Policies are deny by default and additive.
+A pod matched by an empty policy does not allow any traffic. 
+Every network policy adds to the allowlist.
+====
+
+`allow-from-other-namespaces`:: Allows incoming traffic from the monitoring stack, cluster ingresses, and the host network.
+
+`allow-from-same-namespace`:: Allows unrestricted traffic within the same namespace.
+
+Because policies are deny by default it denies all other ingress traffic.
+
+[WARNING]
+====
+If using Cilium Cluster Mesh some identifies thought as unique in a cluster might no longer be unique. See xref:network/cilium-cluster-mesh.adoc[Cilium Cluster Mesh FAQ] for more information on that and more topics.
+====
