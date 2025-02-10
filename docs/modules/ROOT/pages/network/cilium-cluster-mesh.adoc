@@ -1,0 +1,37 @@
+= Cilium Cluster Mesh FAQ
+
+== Interaction of Network Policies and Cilium Cluster Mesh
+
+[WARNING]
+====
+If using Cilium Cluster Mesh some identifies thought as unique in a cluster might no longer be unique.
+====
+
+The default allow-from-same-namespace policy applies within an OpenShift namespace.
+While namespaces are unique within a single cluster, this constraint does not extend to a meshed cluster.
+Since the policy matches based on namespace name, it applies to any namespace with the same name across clusters. For example, if you have a `test` namespace on both `cluster1` and `cluster2`, pods in these namespaces can communicate freely across clusters.
+This show that, generally, network policies treat all clusters as a single unit, though they remain cluster-aware.
+
+For stricter isolation, you must specify the cluster using the `io.cilium.k8s.policy.cluster` label. 
+
+The following policy https://docs.cilium.io/en/latest/network/clustermesh/policy/#allowing-specific-communication-between-clusters[from upstream] illustrates how to allow particular pods to communicate between two clusters. 
+
+[source,yaml]
+----
+apiVersion: "cilium.io/v2"
+kind: CiliumNetworkPolicy
+metadata:
+  name: "allow-cross-cluster"
+spec:
+  description: "Allow x-wing in cluster1 to contact rebel-base in cluster2"
+  endpointSelector:
+    matchLabels:
+      name: x-wing
+      io.cilium.k8s.policy.cluster: kind-cilium-mesh-1
+  egress:
+  - toEndpoints:
+    - matchLabels:
+        name: rebel-base-dev
+        k8s:io.kubernetes.pod.namespace: dev
+        io.cilium.k8s.policy.cluster: kind-cilium-mesh-2
+----
