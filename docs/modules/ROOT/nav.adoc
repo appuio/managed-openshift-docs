@@ -13,3 +13,6 @@
 
 ** GitOps
 *** xref:gitops/howto-argocd.adoc[Setting up ArgoCD]
+
+** OpenShift Compliance
+*** xref:openshift-compliance/howto-export-report.adoc[Review Compliance Scan Results]
