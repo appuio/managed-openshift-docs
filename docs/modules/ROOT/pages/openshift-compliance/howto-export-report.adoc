@@ -1,5 +1,7 @@
 = Review Compliance Scan Results
 
+NOTE: This how-to only applies for clusters where the OpenShift Compliance Operator is installed.
+
 This how-to explains how to review and export compliance scan results made by the OpenShift Compliance Operator.
 
 Additionally, it's recommended to check with the https://docs.openshift.com/container-platform/4.16/security/compliance_operator/co-scans/compliance-operator-supported-profiles.html[upstream documentation].
