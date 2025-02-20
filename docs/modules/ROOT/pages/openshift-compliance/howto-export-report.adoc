@@ -1,0 +1,126 @@
+= Review Compliance Scan Results
+
+NOTE: This how-to only applies for clusters where the OpenShift Compliance Operator is installed.
+
+This how-to explains how to review and export compliance scan results made by the OpenShift Compliance Operator.
+
+Additionally, it's recommended to check with the https://docs.openshift.com/container-platform/4.16/security/compliance_operator/co-scans/compliance-operator-supported-profiles.html[upstream documentation].
+
+== Reviewing results within OpenShift
+
+Check whether the scan is finished
+
+[source,shell]
+--
+$ kubectl -n openshift-compliance get compliancescan
+NAME                   PHASE   RESULT
+ocp4-cis               DONE    NON-COMPLIANT
+ocp4-cis-node-master   DONE    NON-COMPLIANT
+ocp4-cis-node-worker   DONE    NON-COMPLIANT
+--
+
+Check the actual results
+[source,shell]
+--
+$ kubectl -n openshift-compliance get compliancecheckresults
+NAME                                                                  STATUS   SEVERITY
+ocp4-cis-accounts-restrict-service-account-tokens                     MANUAL   medium
+ocp4-cis-accounts-unique-service-account                              MANUAL   medium
+ocp4-cis-api-server-admission-control-plugin-alwaysadmit              PASS     medium
+ocp4-cis-api-server-admission-control-plugin-alwayspullimages         PASS     high
+ocp4-cis-api-server-admission-control-plugin-namespacelifecycle       PASS     medium
+...
+ocp4-cis-api-server-encryption-provider-cipher                        FAIL     medium
+ocp4-cis-api-server-encryption-provider-config                        FAIL     medium
+ocp4-cis-audit-log-forwarding-enabled                                 FAIL     medium
+ocp4-cis-configure-network-policies-namespaces                        FAIL     high
+ocp4-cis-node-master-kubelet-enable-protect-kernel-defaults           FAIL     medium
+ocp4-cis-node-master-kubelet-enable-protect-kernel-sysctl             FAIL     medium
+ocp4-cis-node-worker-kubelet-enable-protect-kernel-defaults           FAIL     medium
+ocp4-cis-node-worker-kubelet-enable-protect-kernel-sysctl             FAIL     medium
+--
+
+You can check each results details for further clarity and a rationale.
+
+== Export the raw results
+
+When proving compliance for your OpenShift Container Platform cluster, you might need to provide the scan results for auditing purposes.
+The Compliance Operator generates and stores the raw results in a persistent volume. These results are in Asset Reporting Format (ARF).
+
+=== Preparation
+Get the PVC names which are used to store the scans in
+
+[source,shell]
+--
+$ kubectl -n openshift-compliance get compliancesuites cis-compliance-tailored -ojson | jq '.status.scanStatuses[].resultsStorage'
+{
+  "name": "ocp4-cis-node-worker",
+  "namespace": "openshift-compliance"
+}
+{
+  "name": "ocp4-cis-node-master",
+  "namespace": "openshift-compliance"
+}
+{
+  "name": "ocp4-cis-modified",
+  "namespace": "openshift-compliance"
+}
+--
+
+With those in mind, you can create a retriever pod. Please ensure your PVCs match the result from the previous command.
+
+[source,shell]
+--
+cat <<EOF | kubectl -n openshift-compliance apply -f -
+apiVersion: "v1"
+kind: Pod
+metadata:
+  name: pv-extract
+  namespace: openshift-compliance
+spec:
+  containers:
+    - name: pv-extract-pod
+      image: quay.io/quay/busybox
+      command: ["sleep", "3000"]
+      volumeMounts:
+      - mountPath: "/scan-vol/worker"
+        name: scan-vol-worker
+      - mountPath: "/scan-vol/master"
+        name: scan-vol-master
+      - mountPath: "/scan-vol/cluster"
+        name: scan-vol-cluster
+  volumes:
+    - name: scan-vol-worker
+      persistentVolumeClaim:
+        claimName: ocp4-cis-node-worker
+    - name: scan-vol-master
+      persistentVolumeClaim:
+        claimName: ocp4-cis-node-master
+    - name: scan-vol-cluster
+      persistentVolumeClaim:
+        claimName: ocp4-cis-modified
+EOF
+--
+
+=== Extracting Raw Results
+
+[source,shell]
+--
+# create dir for results
+mkdir scan-vol
+
+# copy results
+kubectl -n openshift-compliance cp pv-extract:/scan-vol ./scan-vol
+--
+
+=== Cleanup
+[IMPORTANT]
+====
+It's important that you clean up the pod so the PVC are available to the compliance operator for the next scan.
+====
+
+After the extraction is complete, the pod can be deleted.
+[source,shell]
+--
+kubectl -n openshift-compliance delete pod pv-extract
+--
