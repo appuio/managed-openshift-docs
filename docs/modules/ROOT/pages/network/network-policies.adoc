@@ -23,6 +23,8 @@ The traffic directions for which a policy applies is configured in field `policy
 
 Instead of trying to rephrase the upstream documentation, we're quoting the full section "The two sorts of pod isolation" which explains how multiple `NetworkPolicy` objects in a namespace interact.
 
+//* vale off */
+// turning off vale for the quote so we don't have to touch the upstream text
 [quote,'From the Kubernetes documentation, https://kubernetes.io/docs/concepts/services-networking/network-policies/#the-two-sorts-of-pod-isolation["The two sorts of pod isolation"]']
 --
 There are two sorts of isolation for a pod: isolation for egress, and isolation for ingress.
@@ -50,6 +52,7 @@ Thus, order of evaluation does not affect the policy result.
 For a connection from a source pod to a destination pod to be allowed, both the egress policy on the source pod and the ingress policy on the destination pod need to allow the connection.
 If either side does not allow the connection, it will not happen.
 --
+//* vale on */
 
 To summarize, Kubernetes network policies have the following properties:
 
