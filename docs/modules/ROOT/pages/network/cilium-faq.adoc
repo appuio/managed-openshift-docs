@@ -1,4 +1,44 @@
-= Cilium Cluster Mesh FAQ
+= Cilium FAQ
+
+== CiliumNetworkPolicy equivalent for `namespaceSelector: {}`
+
+The following standard Kubernetes network policy allows ingress traffic from all other namespaces (from all clusters when using Cilium cluster mesh):
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-all-namespaces
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+  podSelector: {}
+  policyTypes:
+  - Ingress
+----
+
+To achieve equivalent behavior with a `CiliumNetworkPolicy`, we need to check for the presence of the `k8s:io.kubernetes.pod.namespace` virtual label:
+
+[source,yaml]
+----
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-from-all-namespaces
+spec:
+  endpointSelector: {}
+  ingress:
+  - fromEndpoints:
+    - matchExpressions: <1>
+      - key: k8s:io.kubernetes.pod.namespace
+        operator: Exists
+----
+<1> We need an explicit matcher referencing the `k8s:io.kubernetes.pod.namespace` label in order to override the implicit match on `k8s:io.kubernetes.pod.namespace=<policy namespace>`.
+
+NOTE: We strongly recommend using Kubernetes `NetworkPolicy` resources if the desired policy doesn't use any conditions that can only be expressed in a `CiliumNetworkPolicy`.
+
 
 == Interaction of Network Policies and Cilium Cluster Mesh
 
@@ -14,24 +54,24 @@ By default, the VSHN Managed OpenShift namespace isolation allows cross-cluster 
 On request, we can enable cross-cluster isolation in the VSHN Managed OpenShift default network policies.
 =====
 
-The following example policy https://docs.cilium.io/en/latest/network/clustermesh/policy/#allowing-specific-communication-between-clusters[from the Cilium documentation] illustrates how to allow particular pods to communicate between two clusters:
+The following example policy illustrates how to allow access from namespace `frontend-dev` on cluster `cluster-1` to pods with label `app=backend` in the namespace `backend-dev` on cluster `cluster-2`:
 
 [source,yaml]
 ----
-apiVersion: "cilium.io/v2"
+apiVersion: cilium.io/v2
 kind: CiliumNetworkPolicy
 metadata:
-  name: "allow-cross-cluster"
+  name: allow-from-all-clusters
+  namespace: backend-dev
 spec:
-  description: "Allow x-wing in cluster1 to contact rebel-base in cluster2"
+  description: "Allow frontend-dev namespace on all clusters to connect to our namespace"
   endpointSelector:
     matchLabels:
-      name: x-wing
-      io.cilium.k8s.policy.cluster: kind-cilium-mesh-1
-  egress:
-  - toEndpoints:
+      app: backend
+      io.cilium.k8s.policy.cluster: cluster-2
+  ingress:
+  - fromEndpoints:
     - matchLabels:
-        name: rebel-base-dev
-        k8s:io.kubernetes.pod.namespace: dev
-        io.cilium.k8s.policy.cluster: kind-cilium-mesh-2
+        k8s:io.kubernetes.pod.namespace: frontend-dev
+        io.cilium.k8s.policy.cluster: kind-cilium-mesh-1
 ----
