@@ -2,19 +2,19 @@
 
 == Interaction of Network Policies and Cilium Cluster Mesh
 
-[WARNING]
-====
-If using Cilium Cluster Mesh some identifies thought as unique in a cluster might no longer be unique.
-====
+Cilium Cluster Mesh treats namespaces with the same name on different clusters as the same namespace.
+This facilitates the default cross-cluster load-balancing use case of Cluster Cluster Mesh with minimal network policy adjustments.
 
-The default allow-from-same-namespace policy applies within an OpenShift namespace.
-While namespaces are unique within a single cluster, this constraint does not extend to a meshed cluster.
-Since the policy matches based on namespace name, it applies to any namespace with the same name across clusters. For example, if you have a `test` namespace on both `cluster1` and `cluster2`, pods in these namespaces can communicate freely across clusters.
-This show that, generally, network policies treat all clusters as a single unit, though they remain cluster-aware.
+However, if you want to isolate namespaces with the same name on different clusters from each other, you must specify the local cluster via the `io.cilium.k8s.policy.cluster` label.
+VSHN Managed OpenShift uses the cluster's Project Syn ID as the Cilium Cluster Mesh cluster name.
 
-For stricter isolation, you must specify the cluster using the `io.cilium.k8s.policy.cluster` label. 
+[NOTE]
+=====
+By default, the VSHN Managed OpenShift namespace isolation allows cross-cluster traffic between pods in namespaces with the same name on different clusters.
+On request, we can enable cross-cluster isolation in the VSHN Managed OpenShift default network policies.
+=====
 
-The following policy https://docs.cilium.io/en/latest/network/clustermesh/policy/#allowing-specific-communication-between-clusters[from upstream] illustrates how to allow particular pods to communicate between two clusters. 
+The following example policy https://docs.cilium.io/en/latest/network/clustermesh/policy/#allowing-specific-communication-between-clusters[from the Cilium documentation] illustrates how to allow particular pods to communicate between two clusters:
 
 [source,yaml]
 ----
