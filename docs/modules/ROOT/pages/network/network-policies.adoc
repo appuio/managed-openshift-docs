@@ -1,37 +1,92 @@
 = Network Policies
 
-As a Kubernetes Network Plugin plugin Cilium integrates transparently with standard Kubernetes https://kubernetes.io/docs/reference/generated/kubernetes-api/v1.32/#networkpolicy-v1-networking-k8s-io[`NetworkPolicies`].
-Cilium also provides extended configuration though https://docs.cilium.io/en/latest/network/kubernetes/policy/#ciliumnetworkpolicy[`CiliumNetworkPolicies`].
-Extended policies may allow you to configure L3, L4 and L7 network policies.
-Those extended policies are not usually needed and should be avoided if not necessary as they might introduce performance or stability issues.
+VSHN Managed OpenShift uses https://cilium.io/[Cilium] as the default network plugin (CNI plugin).
 
-You can read about network policies here via https://kubernetes.io/docs/concepts/services-networking/network-policies/[upstream documentation].
+Cilium fully supports standard Kubernetes https://kubernetes.io/docs/concepts/services-networking/network-policies/[network policies].
+Standard Kubernetes network policies support IP address and port level policies (OSI layer 3 and 4).
 
-You can find examples on how to use the extended functionality of cilium network policies https://docs.cilium.io/en/latest/network/kubernetes/policy/#ciliumnetworkpolicy[here].
+Additionally, Cilium provides extended network policies through the https://docs.cilium.io/en/latest/network/kubernetes/policy/#ciliumnetworkpolicy[`CiliumNetworkPolicy`] custom resource.
+Cilium's extended policies provide an extended policy language for OSI layer 3 and 4 policies and also support selected OSI layer 7 policies (primarily HTTP and DNS).
+For most use-cases, Cilium's extended policy options aren't needed, and standard Kubernetes `NetworkPolicy` resources should be preferred when possible.
 
-== Default Network Policies
+[NOTE]
+====
+The VSHN Managed OpenShift default Cilium installation doesn't support all extended `CiliumNetworkPolicy` features.
+Please contact us if you have a use case which requires advanced policy features.
+====
 
-VSHN Managed OpenShift isolates namespaces by default. It does this by auto-generating two network policies.
+== Network Policy Behavior
 
-[source,shell]
+In a Kubernetes namespace which doesn't have any network policies all ingress and egress traffic is allowed.
+Network policies can be configured to apply to ingress traffic, egress traffic or all traffic.
+The traffic directions for which a policy applies is configured in field `policyTypes` of each `NetworkPolicy` object.
+
+Instead of trying to rephrase the upstream documentation, we're quoting the full section "The two sorts of pod isolation" which explains how multiple `NetworkPolicy` objects in a namespace interact.
+
+[quote,'From the Kubernetes documentation, https://kubernetes.io/docs/concepts/services-networking/network-policies/#the-two-sorts-of-pod-isolation["The two sorts of pod isolation"]']
 --
-kubectl get networkpolicy
+There are two sorts of isolation for a pod: isolation for egress, and isolation for ingress.
+They concern what connections may be established.
+"Isolation" here is not absolute, rather it means "some restrictions apply".
+The alternative, "non-isolated for $direction", means that no restrictions apply in the stated direction.
+The two sorts of isolation (or not) are declared independently, and are both relevant for a connection from one pod to another.
+
+By default, a pod is non-isolated for egress; all outbound connections are allowed.
+A pod is isolated for egress if there is any NetworkPolicy that both selects the pod and has "Egress" in its policyTypes; we say that such a policy applies to the pod for egress.
+When a pod is isolated for egress, the only allowed connections from the pod are those allowed by the egress list of some NetworkPolicy that applies to the pod for egress.
+Reply traffic for those allowed connections will also be implicitly allowed.
+The effects of those egress lists combine additively.
+
+By default, a pod is non-isolated for ingress; all inbound connections are allowed.
+A pod is isolated for ingress if there is any NetworkPolicy that both selects the pod and has "Ingress" in its policyTypes; we say that such a policy applies to the pod for ingress.
+When a pod is isolated for ingress, the only allowed connections into the pod are those from the pod's node and those allowed by the ingress list of some NetworkPolicy that applies to the pod for ingress.
+Reply traffic for those allowed connections will also be implicitly allowed.
+The effects of those ingress lists combine additively.
+
+Network policies do not conflict; they are additive.
+If any policy or policies apply to a given pod for a given direction, the connections allowed in that direction from that pod is the union of what the applicable policies allow.
+Thus, order of evaluation does not affect the policy result.
+
+For a connection from a source pod to a destination pod to be allowed, both the egress policy on the source pod and the ingress policy on the destination pod need to allow the connection.
+If either side does not allow the connection, it will not happen.
 --
 
-[IMPORTANT]
+To summarize, Kubernetes network policies have the following properties:
+
+* If any policies exist for a traffic type, all traffic of that type which isn't explicitly allowed by a policy is denied
+* Policies are additive and order of evaluation doesn't affect the result
+* Policies implicitly allow return traffic to/from remote endpoints
+
+== VSHN Managed OpenShift Default Policies
+
+VSHN Managed OpenShift deploys default network policies in each namespace which isolate namespaces from each other.
+The default network policies are managed actively and not intended to be modified by users.
+
+By default the following policies are deployed:
+
+`NetworkPolicy/allow-from-other-namespaces`:: Allows incoming traffic from the monitoring stack, cluster ingress controllers, and pods with `hostNetwork: true`.
+`NetworkPolicy/allow-from-same-namespace`:: Allows unrestricted traffic within the same namespace.
+`CiliumNetworkPolicy/allow-from-cluster-nodes`:: Allows traffic from the cluster's nodes.
+
+Any other traffic (in particular traffic from arbitrary other namespaces) is denied by the default policies.
+Because policies are additive, you can easily allow additional traffic by deploying additional `NetworkPolicy` objects in a namespace.
+
+[TIP]
 ====
-Network Policies are deny by default and additive.
-A pod matched by an empty policy does not allow any traffic. 
-Every network policy adds to the allowlist.
+By default, the isolation network policies allow cross-cluster traffic for pods in a namespace with the same name on different clusters with Cilium Cluster Mesh.
+This behavior is configurable, please contact us if you want cross-cluster isolation for namespaces with the same name with Cilium Cluster Mesh.
 ====
 
-`allow-from-other-namespaces`:: Allows incoming traffic from the monitoring stack, cluster ingresses, and the host network.
-
-`allow-from-same-namespace`:: Allows unrestricted traffic within the same namespace.
-
-Because policies are deny by default it denies all other ingress traffic.
-
-[WARNING]
+[TIP]
 ====
-If using Cilium Cluster Mesh some identifies thought as unique in a cluster might no longer be unique. See xref:network/cilium-cluster-mesh.adoc[Cilium Cluster Mesh FAQ] for more information on that and more topics.
+For advanced use cases, the active management of the default policies can be disabled by labeling a namespace with `network-policies.syn.tools/no-defaults=true`.
+Once that label is set on a namespace, changes or deletions of the default policies in the namespace won't be reverted.
+
+When setting the label, the user becomes responsible to ensure that cluster components such as the ingress controller or the monitoring stack are allowed to access workloads if desired.
 ====
+
+== Additional resources
+
+The Kubernetes documentation on https://kubernetes.io/docs/concepts/services-networking/network-policies/[network policies] is a valuable resource.
+
+The Cilium documentation provides documentation for `CiliumNetworkPolicy` and a number of examples show-casing the extended features in the https://docs.cilium.io/en/latest/security/policy/[Policy section].
