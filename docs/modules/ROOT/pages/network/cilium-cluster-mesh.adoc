@@ -1,0 +1,127 @@
+= Cilium Cluster Mesh
+
+[quote,'From the Cilium documentation, https://docs.cilium.io/en/stable/network/clustermesh/["Multi-cluster (Cluster Mesh)"]']
+--
+Cluster mesh extends the networking datapath across multiple clusters.
+It allows endpoints in all connected clusters to communicate while providing full policy enforcement.
+Load-balancing is available via Kubernetes annotations.
+--
+
+This documentation tries to outline how to implement the most common use cases for Cilium Cluster Mesh on VSHN Managed OpenShift.
+
+NOTE: Please contact us if you're interested in leveraging Cilium Cluster Mesh on your VSHN Managed OpenShift clusters.
+
+----
+TODO(sg): maybe build an example we can use throughout based on our fortune-go app?
+----
+
+== Load balancing across clusters
+
+The primary use case for Cilium cluster mesh is to load balance traffic to application backends running on different clusters.
+Cilium Cluster Mesh implements support for cross-cluster load balancing through annotations on the Kubernetes `Service` object.
+
+The basic implementation of cross-cluster load balancing requires that the same `Service` object is deployed in the same namespace on multiple clusters that are connected with each other.
+Additionally, this `Service` object must have annotation `service.cilium.io/global="true"` for Cilium to load balance traffic on the service to all endpoints associated with the service on all clusters.
+
+The load balancing behavior can be further customized by setting annotation `service.cilium.io/shared="false"` on a service which is annotated with `service.cilium.io/global="true"`.
+This combination makes remote endpoints available on the cluster, but doesn't share local endpoints with remote clusters.
+
+Finally, the annotation `service.cilium.io/affinity` can be set to one of `local`, `remote`, or `none`.
+Setting the annotation with value `none` distributes traffic across all healthy endpoints without preference for local or remote endpoints.
+This is the same behavior as if the annotation didn't exist.
+Setting the annotation with value `local` configures Cilium Cluster Mesh to only send traffic to remote service endpoints if there's no healthy local endpoints.
+Conversely, setting the annotation with value `remote` configures Cilium Cluster Mesh to only send traffic to local service endpoints if there's no healthy remote endpoints.
+
+See section https://docs.cilium.io/en/stable/network/clustermesh/services/[Load-balancing & Service Discovery] and https://docs.cilium.io/en/stable/network/clustermesh/affinity/[Service Affinity] in the Cilium documentation for more details and some examples.
+
+== Accessing services on a remote cluster
+
+Accessing services on a remote cluster via Cilium cluster mesh can be seen as a special case for cross-cluster load balancing.
+To make a service on a remote cluster discoverable, the namespace of the remote service must be created on each cluster, and a copy of the `Service` object with annotation `service.cilium.io/global="true"` must be created in those namespaces.
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: global-service
+  namespace: backend <1>
+  annotations:
+    service.cilium.io/global: "true" <2>
+spec:
+  ports: <3>
+    port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: global-service <4>
+----
+<1> This example assumes that the global service is deployed in namespace `backend`.
+The NetworkPolicy must be deployed in the service namespace on the cluster hosting the service.
+<2> Annotation `service.cilium.io/global="true"` configures Cilium to forward traffic to this service to remote endpoints via Cluster Mesh.
+<3> The field `spec.ports` is relevant on clusters which aren't hosting the workload.
+The values of `targetPort` and `protocol` for each entry of `spec.ports` must match the workload's container ports.
+The value of `port` can be chosen arbitrarily and doesn't need to match across clusters.
+<4> The example assumes that the service pods (and therefore the endpoints) have label `app=global-service`.
+The selector only matters on the cluster which hosts the workload.
+
+With that setup, each cluster can then discover the remote service via DNS name `global-service.namespace.svc.cluster.local`.
+
+NOTE: VSHN Managed OpenShift currently doesn't support cross-cluster service discovery via in-cluster DNS.
+
+To ensure that clients on all clusters can access the endpoints of the global service a network policy is required.
+Depending on the required level of isolation, a policy could allow all clusters to access the endpoints of the service by setting up a network policy which allows all traffic from all clusters:
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-service-from-all-namespaces-all-clusters
+  namespace: backend <1>
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {} <2>
+  podSelector:
+    matchLabels:
+      app: global-service <3>
+  policyTypes:
+  - Ingress
+----
+<1> This example assumes that the global service is deployed in namespace `backend`.
+The NetworkPolicy must be deployed in the service namespace on the cluster hosting the service.
+<2> Allow traffic from all namespaces across all clusters.
+Omitting this will only allow traffic from namespace `backend`.
+<4> The example assumes that the service pods (and therefore the endpoints) have label `app=global-service`.
+
+[NOTE]
+====
+If you know the pod IP of an application on a remote cluster, you can access that IP directly via the Cilium SDN when Cluster Mesh is setup.
+However, service IPs on a remote cluster aren't reachable through the Cilium SDN even with Cilium Cluster Mesh.
+====
+== Network Policies
+
+Cilium's network policy implementation treats each namespace name as a shared virtual namespace across all clusters which are connected in a Cluster Mesh.
+To restrict access between namespaces with the same name on different clusters, network policies must restrict access based on the label `io.cilium.k8s.policy.cluster`.
+VSHN Managed OpenShift uses each cluster's Project Syn ID as the Cilium Cluster Mesh cluster name.
+
+Network policies must be deployed in the workload's namespace.
+For workloads spread across multiple clusters a copy of the network policy must be present in the workload namespace in each cluster that hosts replicas of the workload.
+When using global services to access services on a remote cluster, the network policy on the remote cluster must allow access from the source cluster, see also the example above.
+
+See also the FAQ entry on xref:network/cilium-faq.adoc#netpol-cilium-cluster-mesh["Interaction of Network Policies and Cilium Cluster Mesh"].
+
+== Limitations
+
+* Cross-cluster load balancing isn't supported for applications which are exposed on the default OpenShift ingress controller.
+This is the case because 1) OpenShift ingress controller configures its internal HAProxy based on the Kubernetes `Endpoint` resources associated with the service that's configured as the backend in `Ingress` or `Route` resources and 2) Cilium cluster mesh doesn't synchronize service endpoints across clusters.
++
+TIP: Please contact us to discuss options for making cross-cluster load balancing available for applications exposed over `Ingress` resources.
+
+* Cross-cluster service discovery without a copy of a global service in each cluster isn't supported on VSHN Managed OpenShift.
+There's currently no way to customize the OpenShift in-cluster DNS service to be aware of remote clusters.
+
+== Additional resources
+
+The Cilium documentation has some valuable documentation (including examples) for Cluster Mesh in section https://docs.cilium.io/en/stable/network/clustermesh/[Multi-cluster Networking].
