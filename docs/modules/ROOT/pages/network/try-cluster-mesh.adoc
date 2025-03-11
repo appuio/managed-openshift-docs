@@ -1,0 +1,388 @@
+= Try out Cilium Cluster Mesh functionality
+
+This page provides example configurations which allow you to try out the features documented in xref:network/cilium-cluster-mesh.adoc[].
+In general, this page assumes that you've already read that page, and will reference to sections in it throughout the content.
+
+[NOTE]
+====
+There's some optional steps which are only required if your clusters are configured with cross cluster namespace isolation.
+See the FAQ entry xref:network/cilium-faq.adoc#netpol-cilium-cluster-mesh["Interaction of Network Policies and Cilium Cluster Mesh"] for details.
+====
+
+== Initial setup
+
+This section provides instructions to setup namespaces and an example application.
+
+. Create a new namespace ("project") on two clusters that are connected via cluster mesh
++
+[source,bash]
+----
+CLUSTER_A=<context name of one of the clusters in your kubeconfig> <1>
+CLUSTER_B=<context name of the other cluster in your kubeconfig> <1>
+oc --context="$CLUSTER_A" new-project --skip-config-write cluster-mesh-example
+oc --context="$CLUSTER_B" new-project --skip-config-write cluster-mesh-example
+----
+<1> This section assumes that you have a single kubeconfig file which has a context for the two clusters on which you're planning to install the example application.
+We'll use variables `$CLUSTER_A` and `$CLUSTER_B` to denote the two clusters throughout the section.
+If you have a different setup for managing cluster access, please make sure to adjust the commands accordingly.
+
+. Deploy the `fortune-go` deployment and a global service (see section xref:network/cilium-cluster-mesh.adoc#_load_balancing_across_clusters[Load balancing across clusters] for details) on each cluster
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/fortune-go.yaml
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/fortune-go.yaml
+----
+
+. Deploy a basic toolbox pod on each cluster which allows you to execute `curl` to access the `fortune-go` application:
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/toolbox.yaml
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/toolbox.yaml
+----
+
+. You should now be able to access the `fortune-go` service from both toolbox pods as long as at least one `fortune-go` replica is running on one of the clusters:
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+----
++
+[NOTE]
+====
+If your clusters are already configured with cross-cluster namespace isolation (see section <<_network_policies>> for details), you need to deploy a network policy which allows cross cluster traffic in the `cluster-mesh-example` namespace.
+
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/networkpolicy-same-namespace-all-clusters.yaml
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/networkpolicy-same-namespace-all-clusters.yaml
+----
+====
+
+. Finally, you can verify that cross-cluster access works by scaling down the `fortune-go` deployment on cluster A and verifying that you can still access the service:
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=0
+# wait until pod is terminated before running the curl
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+----
+
+== Load balancing across clusters
+
+This section shows how the cross cluster load balancing features work. See xref:network/cilium-cluster-mesh.adoc#_load_balancing_across_cluters[Load balancing across clusters] for an overview.
+
+=== Default global service
+
+. Make sure we have 1 fortune-go replica on each cluster
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+----
+
+. Access the `fortune-go` service 6 times from cluster A
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. If you haven't modified the `fortune-go` service yet, you should see some requests logged in each fortune-go pod.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+=== Global service with endpoint sharing customization
+
+. Make sure we have 1 fortune-go replica on each cluster
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+----
+
+. Annotate the `fortune-go` service on cluster B with `service.cilium.io/shared="false"`
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  annotate svc/fortune-go service.cilium.io/shared="false"
+----
+
+. Access the `fortune-go` service 6 times from cluster A
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. You should see 6 requests logged in the fortune-go pod on cluster A and none on cluster B, since cluster B's fortune-go endpoints aren't shared with remote clusters anymore.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+. Access the `fortune-go` service 6 times from cluster B
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. You should see some requests logged in the fortune-go pod on each cluster, since cluster A still shares its fortune-go endpoints with cluster B.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+. Remove the `service.cilium.io/shared="false"` annotation on cluster B
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  annotate svc/fortune-go service.cilium.io/shared-
+----
+
+=== Global service with custom affinity
+
+. Make sure we have 1 fortune-go replica on each cluster
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+----
+
+. Annotate the `fortune-go` service on cluster A with `service.cilium.io/affinity=local`
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  annotate svc/fortune-go service.cilium.io/affinity=local
+----
+
+. Access the `fortune-go` service 6 times from cluster A
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. You should see 6 requests logged in the fortune-go pod on cluster A and none on cluster B, since cluster A's endpoints are preferred with `affinity=local` on the service on cluster A.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+. Annotate the `fortune-go` service on cluster A with `service.cilium.io/affinity=remote`
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  annotate svc/fortune-go service.cilium.io/affinity=remote --overwrite
+----
+
+. Access the `fortune-go` service 6 times from cluster A
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. You should see 6 requests logged in the fortune-go pod on cluster B and none on cluster A, since cluster B's endpoints are preferred with `affinity=remote` on the service on cluster A.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+. Remove the `service.cilium.io/affinity` annotation on cluster B
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  annotate svc/fortune-go service.cilium.io/affinity-
+----
+
+. Access the `fortune-go` service 6 times from cluster A
++
+[source,bash]
+----
+for i in `seq 1 6`; do
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+done
+----
+
+. You should see some requests logged in the fortune-go pod on each cluster once the affinity config is removed.
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  logs deploy/fortune-go
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  logs deploy/fortune-go
+----
+
+== Remote service access
+
+. Make sure we have 1 fortune-go replica on cluster A and 0 replicas on cluster B
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=1
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  scale deploy/fortune-go --replicas=0
+----
+
+. Verify that we can still access the `fortune-go` service from cluster B
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" fortune-go:8080
+----
+
+=== Remote service access from a different namespace
+
+. Create an additional namespace ("project") on each cluster and deploy the toolbox pod in that namespace
++
+[source,bash]
+----
+oc --context="$CLUSTER_A" new-project --skip-config-write cluster-mesh-client
+kubectl --context="$CLUSTER_A" -n cluster-mesh-client apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/toolbox.yaml
+
+oc --context="$CLUSTER_B" new-project --skip-config-write cluster-mesh-client
+kubectl --context="$CLUSTER_B" -n cluster-mesh-client apply \
+  -f https://raw.githubusercontent.com/appuio/managed-openshift-docs/refs/heads/main/examples/toolbox.yaml
+----
+
+. Create a network policy which allows access from the additional namespace on cluster B
++
+[source,bash]
+----
+CLUSTER_B_ID=$CLUSTER_B <1>
+kubectl --context="$CLUSTER_A" -n cluster-mesh-example apply -f- <<EOF
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-fortune-go-from-cluster-mesh-client-$CLUSTER_B_ID
+spec:
+  ingress:
+  - from:
+    - namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: cluster-mesh-client
+      podSelector:
+        matchLabels:
+          io.cilium.k8s.policy.cluster: $CLUSTER_B_ID
+  podSelector:
+    matchLabels:
+      app: fortune-go
+  policyTypes:
+  - Ingress
+EOF
+----
+<1> The example command assumes that your context name matches the cluster's Cilium name/Project Syn ID.
+Adjust the value of `CLUSTER_B_ID` if that isn't the case.
+
+. Verify that the `fortune-go` service is accessible from namespace `cluster-mesh-client` on cluster B
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_B" -n cluster-mesh-client \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" \
+  fortune-go.cluster-mesh-example:8080
+----
+
+. Verify that the `fortune-go` service isn't accessible from namespace `cluster-mesh-client` on cluster A
++
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" -n cluster-mesh-client \
+  exec -it deploy/toolbox -- curl --connect-timeout 2 \
+  fortune-go.cluster-mesh-example:8080
+----
+
+=== Accessing a remote pod directly via Pod IP
+
+You can directly access the fortune-go pod on cluster A via Pod IP from cluster B.
+
+[source,bash]
+----
+POD_IP=$(kubectl --context="$CLUSTER_A" -n cluster-mesh-example \
+  get pod -l app=fortune-go -ojsonpath='{.items[0].status.podIP}')
+kubectl --context="$CLUSTER_B" -n cluster-mesh-example \
+  exec -it deploy/toolbox -- curl -H"Accept: text/plain" \
+  "$POD_IP":8080
+----
+
+== Cleaning up
+
+To clean up the example, you can just delete the namespaces.
+
+[source,bash]
+----
+kubectl --context="$CLUSTER_A" delete project --ignore-not-found \
+  cluster-mesh-example cluster-mesh-client
+kubectl --context="$CLUSTER_B" delete project --ignore-not-found \
+  cluster-mesh-example cluster-mesh-client
+----
