@@ -1,5 +1,9 @@
 * xref:index.adoc[Home]
 
+** Network
+*** xref:network/network-policies.adoc[]
+*** xref:network/cilium-faq.adoc[]
+
 ** xref:logging/index.adoc[Logging]
 *** xref:logging/tutorial-lokistack.adoc[Getting Started]
 *** xref:logging/howto-query-logs.adoc[]

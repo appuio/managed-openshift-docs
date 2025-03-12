@@ -1,0 +1,77 @@
+= Cilium FAQ
+
+== CiliumNetworkPolicy equivalent for `namespaceSelector: {}`
+
+The following standard Kubernetes network policy allows ingress traffic from all other namespaces (from all clusters when using Cilium cluster mesh):
+
+[source,yaml]
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-all-namespaces
+spec:
+  ingress:
+  - from:
+    - namespaceSelector: {}
+  podSelector: {}
+  policyTypes:
+  - Ingress
+----
+
+To achieve equivalent behavior with a `CiliumNetworkPolicy`, we need to check for the presence of the `k8s:io.kubernetes.pod.namespace` virtual label:
+
+[source,yaml]
+----
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-from-all-namespaces
+spec:
+  endpointSelector: {}
+  ingress:
+  - fromEndpoints:
+    - matchExpressions: <1>
+      - key: k8s:io.kubernetes.pod.namespace
+        operator: Exists
+----
+<1> We need an explicit matcher referencing the `k8s:io.kubernetes.pod.namespace` label in order to override the implicit match on `k8s:io.kubernetes.pod.namespace=<policy namespace>`.
+
+NOTE: We strongly recommend using Kubernetes `NetworkPolicy` resources if the desired policy doesn't use any conditions that can only be expressed in a `CiliumNetworkPolicy`.
+
+
+== Interaction of Network Policies and Cilium Cluster Mesh
+
+Cilium Cluster Mesh treats namespaces with the same name on different clusters as the same namespace.
+This facilitates the default cross-cluster load-balancing use case of Cluster Cluster Mesh with minimal network policy adjustments.
+
+However, if you want to isolate namespaces with the same name on different clusters from each other, you must specify the local cluster via the `io.cilium.k8s.policy.cluster` label.
+VSHN Managed OpenShift uses the cluster's Project Syn ID as the Cilium Cluster Mesh cluster name.
+
+[NOTE]
+=====
+By default, the VSHN Managed OpenShift namespace isolation allows cross-cluster traffic between pods in namespaces with the same name on different clusters.
+On request, we can enable cross-cluster isolation in the VSHN Managed OpenShift default network policies.
+=====
+
+The following example policy illustrates how to allow access from namespace `frontend-dev` on cluster `cluster-1` to pods with label `app=backend` in the namespace `backend-dev` on cluster `cluster-2`:
+
+[source,yaml]
+----
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-from-all-clusters
+  namespace: backend-dev
+spec:
+  description: "Allow frontend-dev namespace on all clusters to connect to our namespace"
+  endpointSelector:
+    matchLabels:
+      app: backend
+      io.cilium.k8s.policy.cluster: cluster-2
+  ingress:
+  - fromEndpoints:
+    - matchLabels:
+        k8s:io.kubernetes.pod.namespace: frontend-dev
+        io.cilium.k8s.policy.cluster: kind-cilium-mesh-1
+----
