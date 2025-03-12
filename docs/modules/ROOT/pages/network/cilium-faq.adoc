@@ -40,6 +40,7 @@ spec:
 NOTE: We strongly recommend using Kubernetes `NetworkPolicy` resources if the desired policy doesn't use any conditions that can only be expressed in a `CiliumNetworkPolicy`.
 
 
+[#netpol-cilium-cluster-mesh]
 == Interaction of Network Policies and Cilium Cluster Mesh
 
 Cilium Cluster Mesh treats namespaces with the same name on different clusters as the same namespace.
