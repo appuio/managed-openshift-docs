@@ -115,6 +115,16 @@ Cilium's network policy implementation treats each namespace name as a shared vi
 To restrict access between namespaces with the same name on different clusters, network policies must restrict access based on the label `io.cilium.k8s.policy.cluster`.
 VSHN Managed OpenShift uses each cluster's Project Syn ID as the Cilium Cluster Mesh cluster name.
 
+[TIP]
+====
+You can find a cluster's Project Syn ID by reading it from the cluster's Project Syn `cluster-info` configmap:
+
+[source,bash]
+----
+kubectl -n syn get configmap cluster-info -ojsonpath='{.data.cluster_id}{"\n"}'
+----
+====
+
 Network policies must be deployed in the workload's namespace.
 For workloads spread across multiple clusters a copy of the network policy must be present in the workload namespace in each cluster that hosts replicas of the workload.
 When using global services to access services on a remote cluster, the network policy on the remote cluster must allow access from the source cluster, see also the example above.
