@@ -1,0 +1,41 @@
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: fortune-go
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: fortune-go
+  strategy:
+    type: Recreate
+  template:
+    metadata:
+      creationTimestamp: null
+      labels:
+        app: fortune-go
+    spec:
+      containers:
+      - image: registry.gitlab.com/vshn/applications/fortune-go:latest
+        imagePullPolicy: Always
+        name: fortune-container
+        ports:
+        - containerPort: 8080
+          protocol: TCP
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: fortune-go
+  annotations:
+    service.cilium.io/global: "true"
+spec:
+  ports:
+  - port: 8080
+    protocol: TCP
+    targetPort: 8080
+  selector:
+    app: fortune-go
+  sessionAffinity: None
+  type: ClusterIP

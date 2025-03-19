@@ -1,0 +1,14 @@
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-from-same-namespace-all-clusters
+spec:
+  ingress:
+  - from:
+    - podSelector:
+        matchExpressions:
+        - key: io.cilium.k8s.policy.cluster
+          operator: Exists
+  podSelector: {}
+  policyTypes:
+  - Ingress
