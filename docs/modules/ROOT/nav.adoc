@@ -4,6 +4,7 @@
 *** xref:network/network-policies.adoc[]
 *** xref:network/cilium-cluster-mesh.adoc[]
 **** xref:network/try-cluster-mesh.adoc[]
+*** xref:network/cilium-observability-with-hubble.adoc[]
 *** xref:network/cilium-faq.adoc[]
 
 ** xref:logging/index.adoc[Logging]
