@@ -64,12 +64,13 @@ To summarize, Kubernetes network policies have the following properties:
 
 VSHN Managed OpenShift deploys default network policies in each namespace which isolate namespaces from each other.
 The default network policies are managed actively and not intended to be modified by users.
+The managed policies are organized into policy sets which can be enabled and disabled individually.
 
 By default the following policies are deployed:
 
-`NetworkPolicy/allow-from-other-namespaces`:: Allows incoming traffic from the monitoring stack, cluster ingress controllers, and pods with `hostNetwork: true`.
-`NetworkPolicy/allow-from-same-namespace`:: Allows unrestricted traffic within the same namespace.
-`CiliumNetworkPolicy/allow-from-cluster-nodes`:: Allows traffic from the cluster's nodes.
+`NetworkPolicy/syn-internal-set-base`:: Allows incoming traffic from the monitoring stack, cluster ingress controllers, and pods with `hostNetwork: true`.
+`NetworkPolicy/syn-set-default-allow-intra-namespace`:: Allows unrestricted traffic within the same namespace.
+`CiliumNetworkPolicy/syn-internal-set-base`:: Allows traffic from the cluster's nodes.
 
 Any other traffic (in particular traffic from arbitrary other namespaces) is denied by the default policies.
 Because policies are additive, you can easily allow additional traffic by deploying additional `NetworkPolicy` objects in a namespace.
@@ -86,6 +87,12 @@ For advanced use cases, the active management of the default policies can be dis
 Once that label is set on a namespace, changes or deletions of the default policies in the namespace won't be reverted.
 
 When setting the label, the user becomes responsible to ensure that cluster components such as the ingress controller or the monitoring stack are allowed to access workloads if desired.
+====
+
+[TIP]
+====
+For advanced use cases on VSHN Managed OpenShift, we can deploy additional policy sets on user request.
+Please contact us if you're interested in using additional policy sets on your clusters.
 ====
 
 == Additional resources
