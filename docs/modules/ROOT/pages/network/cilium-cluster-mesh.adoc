@@ -98,7 +98,7 @@ spec:
 The NetworkPolicy must be deployed in the service namespace on the cluster hosting the service.
 <2> Allow traffic from all namespaces across all clusters.
 Omitting this will only allow traffic from namespace `backend`.
-<4> The example assumes that the service pods (and therefore the endpoints) have label `app=global-service`.
+<3> The example assumes that the service pods (and therefore the endpoints) have label `app=global-service`.
 
 See section xref:network/try-cluster-mesh.adoc#_remote_service_access_from_a_different_namespace["Remote service access from a different namespace"] for a hands-on cross-namespace remote access example.
 
