@@ -1,0 +1,215 @@
+= Cilium Observability with Hubble Relay
+
+== Prerequisites
+
+* https://docs.cilium.io/en/stable/gettingstarted/k8s-install-default/#install-the-cilium-cli[`cilium` CLI]
+* https://docs.cilium.io/en/stable/observability/hubble/setup/#hubble-cli-install[`hubble` CLI]
+* Access to the target cluster's Kubernetes API
+* Permission create port-forwards in the `cilium` namespace to access Hubble Relay
+
+TIP: Please contact VSHN if you require Hubble Relay port-forward access.
+
+[IMPORTANT]
+====
+All commands in this page assume that your current Kubeconfig context is pointing to the cluster on which you want to observe network flows with Hubble.
+
+All sections except <<_connecting_to_hubble_relay>> assume that you've setup a port-forward as described in that section.
+====
+
+== Connecting to Hubble Relay
+
+In order to observe network traffic ("flows") with Hubble, you need to connect to Hubble Relay on the target cluster.
+
+TIP: On clusters which are part of a Cilium cluster mesh, connecting to Hubble Relay on one cluster will allow you to observe all traffic in all meshed clusters.
+
+. Create port-forward to the Hubble Relay on the cluster
++
+[source,bash]
+----
+cilium -n cilium hubble port-forward & <1>
+----
+<1> If the command fails, you probably don't have sufficient permissions to create port-forwards in the `cilium` namespace.
+We send the port-forward process in the background, so we can run follow-up commands in the same shell.
+
+. Verify connectivity
++
+[source,bash]
+----
+hubble status
+----
++
+This command should show something like
++
+[source,bash]
+----
+Healthcheck (via localhost:4245): Ok
+Current/Max Flows: 57,330/57,330 (100.00%)
+Flows/s: 3024.75
+Connected Nodes: 14/14
+----
+
+[TIP]
+====
+For short sessions, you can also setup a temporary port-forward with the `hubble` command instead of running a separate `cilium hubble port-forward`:
+
+[source,bash]
+----
+hubble --kube-namespace cilium -P status
+----
+====
+
+== Observing flows
+
+The simplest operation is to simply observe flows.
+The canonical command for observing flows is `hubble observe flows`.
+However, `hubble observe` without an explicit subcommand defaults to `hubble observe flows`.
+The rest of this page will use `hubble observe` for brevity.
+
+When executed without any options, and against a Hubble Relay endpoint, `hubble observe` reads the last 20 flows from each Hubble instance connected to the Relay and prints them to standard out.
+
+[source,shell]
+----
+$ hubble observe
+[ ... truncated ... ]
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:58908 (ID:8439) -> 172.18.200.204:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:34676 (ID:8439) -> 172.18.200.111:4244 (kube-apiserver) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:54652 (ID:8439) -> 172.18.200.183:4244 (kube-apiserver) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:49344 (ID:8439) -> 172.18.200.162:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:36384 (ID:8439) -> 172.18.200.167:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:33470 (ID:8439) -> 172.18.200.254:4244 (host) to-stack FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:56626 (ID:8439) -> 172.18.200.188:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:55756 (ID:8439) -> 172.18.200.119:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:58532 (ID:8439) -> 172.18.200.192:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:55906 (ID:8439) -> 172.18.200.146:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:49292 (ID:8439) -> 172.18.200.132:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:33502 (ID:8439) -> 172.18.200.225:4244 (kube-apiserver) to-network FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:28:07.122: cilium/hubble-relay-5f6679555f-czbbc:40474 (ID:8439) -> 172.18.200.215:4244 (remote-node) to-network FORWARDED (TCP Flags: ACK, PSH)
+$
+----
+
+Usually, we're probably most interested in observing flows live.
+To see flows in real time, we use `hubble observe -f`.
+
+[source,shell]
+----
+$ hubble observe -f
+[ ... truncated ... ]
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) <- openshift-dns/dns-default-cpz6v:8181 (ID:829) to-stack FORWARDED (TCP Flags: SYN, ACK)
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) -> openshift-dns/dns-default-cpz6v:8181 (ID:829) to-endpoint FORWARDED (TCP Flags: ACK)
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) <> openshift-dns/dns-default-cpz6v (ID:829) pre-xlate-rev TRACED (TCP)
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) -> openshift-dns/dns-default-cpz6v:8181 (ID:829) to-endpoint FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) <- openshift-dns/dns-default-cpz6v:8181 (ID:829) to-stack FORWARDED (TCP Flags: ACK, PSH)
+Oct 24 12:33:13.067: 10.128.25.130:38632 (host) -> openshift-dns/dns-default-cpz6v:8181 (ID:829) to-endpoint FORWARDED (TCP Flags: ACK, FIN)
+Oct 24 12:33:13.068: 10.128.25.130:38632 (host) <- openshift-dns/dns-default-cpz6v:8181 (ID:829) to-stack FORWARDED (TCP Flags: ACK, FIN)
+<1>
+----
+<1> `hubble observe -f` continues streaming flows until the command is interrupted with `Ctrl-C`.
+
+Without filtering, this command will usually generate a large amount of output.
+See section <<_filtering_flows>> for details on how to filter flows.
+
+== The anatomy of a `hubble observe` output line
+
+Before we dive into filtering flows, let's have a quick look at the anatomy of one line of output.
+
+[source]
+----
+Oct 27 09:37:18.738: syn/argocd-application-controller-0:59434 (ID:40231) -> <1>
+\-------(1)--------/ \--------------------(2)----------------/ \--(3)---/
+
+172.18.200.225:6443 (kube-apiserver) to-network FORWARDED (TCP Flags: RST)
+\------(4)--------/ \-----(5)------/ \--(6)---/ \--(7)--/ \-----(8)------/
+----
+<1> We've broken the single line across multiple lines here to better show the different parts.
+`hubble observe` output will contain all of this information on a single line.
+
+A line of output (when using the default output format of `hubble observe`) has 8 pieces of information:
+
+. The timestamp (`Oct 27 09:37:18.738`) at which the flow event was captured
+. The source (`syn/argocd-application-controller-0:59434`) of the flow event.
+In this example, the source is comprised of a pod in the cluster and the source port (`59434` here) of the network connection.
+. The source's Cilium identity ID (`ID:40231`).
+Cluster admins can look up this identity in a Cilium agent pod with `kubectl -n cilium exec ds/cilium -- cilium-dbg identity get 40231`.
+. The destination (`172.18.200.225:6443`) of the flow event
+Here, we see that destinations (or sources) can also be entities other than pods.
+Hubble will try to provide as much information as possible about entities, see below.
+. The destination's Cilium identity ID (`kube-apiserver`)
+For non-pod destinations (or sources), Hubble will attach special identities if possible.
+In this example, the destination is the Kubernetes API server of the cluster.
+. The flow event type (`to-network`)
+. The Cilium policy decision for the flow (`FORWARDED`)
+. The flow event's TCP flags (if any, `TCP Flags: RST` here).
+
+For advanced users, `hubble observe` supports customizing the output format with `-o / --output`.
+
+== Filtering flows
+
+Generally, we're not interested in all flows in the cluster when debugging a particular issue.
+
+=== Filtering by namespace
+
+The simplest filtering option is to only observe flows for a specific namespace.
+As you might expect, filtering by namespace is done with `-n <namespace>` (or `--namespace <namespace>`).
+
+[source,shell]
+----
+$ hubble observe -n syn
+[ ... truncated ... ]
+Oct 24 12:36:49.000: syn/syn-argocd-application-controller-0:49964 (ID:40231) -> syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-overlay FORWARDED (TCP Flags: ACK, FIN, PSH)
+Oct 24 12:36:49.000: syn/syn-argocd-application-controller-0:49964 (ID:40231) -> syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-endpoint FORWARDED (TCP Flags: ACK, FIN, PSH)
+Oct 24 12:36:49.000: syn/syn-argocd-application-controller-0:49964 (ID:40231) <- syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-overlay FORWARDED (TCP Flags: ACK, FIN)
+Oct 24 12:36:49.001: syn/syn-argocd-application-controller-0:49964 (ID:40231) -> syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-endpoint FORWARDED (TCP Flags: RST)
+Oct 24 12:36:49.001: syn/syn-argocd-application-controller-0:49964 (ID:40231) -> syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-overlay FORWARDED (TCP Flags: RST)
+Oct 24 12:36:49.001: syn/syn-argocd-application-controller-0:49964 (ID:40231) <- syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-endpoint FORWARDED (TCP Flags: ACK, FIN)
+Oct 24 12:36:49.001: syn/syn-argocd-application-controller-0:49964 (ID:40231) -> syn/syn-argocd-repo-server-f88dbc8d7-bzvhn:8081 (ID:9666) to-endpoint FORWARDED (TCP Flags: RST)
+$
+----
+
+Naturally, filters can be combined with following live flows with flag `-f`.
+
+If we're only interested in flows with a particular origin or destination namespace, rather than all flows which involve a namespace, `hubble observe` has separate flags `--from-namespace` and `--to-namespace` for filtering by origin and destination namespace.
+
+=== Filtering by label
+
+Another useful option is to filter flows by endpoint labels.
+This can help further reduce the amount of flows compared to simply filtering by namespace.
+
+Filtering by label is exposed through flags `-l / --label`, `--from-label` and `--to-label`.
+
+NOTE: In most cases, endpoint labels will correspond to pod labels.
+
+TIP: You can combine namespace and label filters to further narrow down the amount of flows.
+
+=== Filtering by pod
+
+If you've already identified a specific pod which has network issues, you can also directly filter flows by pod.
+The flags for filtering by pod are `--pod`, `--from-pod` and `--to-pod`.
+You need to either provide the pod namespace via `-n <pod namespace>` or by specifying the pod filter as `--pod <pod namespace>/<pod name>`.
+
+=== Filtering by event type or policy verdict
+
+When debugging network policy issues, filtering by event type can be very helpful.
+Filtering by type is done with flag `-t / --type`.
+For debugging network policies, observing type `drop` or `policy-verdict` can be useful.
+
+Alternatively, you can also filter flows by policy verdict with flag `--verdict`.
+
+== Tips and tricks
+
+* `hubble observe --help` has a fairly comprehensive documentation of all available filtering options.
+* If L7 observability is set up for a workload, Hubble will display L7 information for flows associated with that workload.
+* `hubble observe | grep` can be very helpful if you're not sure what exact filter you'll need, but know roughly what you're looking for.
+** You can keep the colored output when piping the output into `grep` by specifying `--color=always`.
+* If you want to see only IP addresses, you can use flag `--ip-translation=false`.
+
+== Limitations
+
+* Some filters (for example `-n / --namespace` and `--to-service`) can't be combined.
+* The Hubble instance in each Cilium agent stores recent flows in ring buffers.
+However, the size of these ring buffers is limited and old flows will be rotated out frequently.
+On our lab environment, the ring buffers contain flows for the last 60 to 120 seconds depending on the amount of network activity on each node.
+
+== Additional resources
+
+* Upstream Hubble documentation on https://docs.cilium.io/en/stable/observability/hubble/hubble-cli/[Inspecting Network Flows with the CLI]
+* 
