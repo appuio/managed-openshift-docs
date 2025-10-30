@@ -200,7 +200,7 @@ Alternatively, you can also filter flows by policy verdict with flag `--verdict`
 * If L7 observability is set up for a workload, Hubble will display L7 information for flows associated with that workload.
 * `hubble observe | grep` can be very helpful if you're not sure what exact filter you'll need, but know roughly what you're looking for.
 ** You can keep the colored output when piping the output into `grep` by specifying `--color=always`.
-* If you want to see only IP addresses, you can use flag `--ip-translation=false`.
+* If you want to disable IP to pod name translation, you can use flag `--ip-translation=false`.
 
 == Limitations
 
@@ -212,4 +212,4 @@ On our lab environment, the ring buffers contain flows for the last 60 to 120 se
 == Additional resources
 
 * Upstream Hubble documentation on https://docs.cilium.io/en/stable/observability/hubble/hubble-cli/[Inspecting Network Flows with the CLI]
-* 
+* https://isovalent.com/blog/post/cilium-hubble-cheat-sheet-observability/[Isovalent Hubble Observability Cheatsheet]
