@@ -6,6 +6,7 @@
 **** xref:network/try-cluster-mesh.adoc[]
 *** xref:network/cilium-observability-with-hubble.adoc[]
 *** xref:network/cilium-faq.adoc[]
+*** xref:network/service-loadbalancer.adoc[]
 
 ** xref:logging/index.adoc[Logging]
 *** xref:logging/tutorial-lokistack.adoc[Getting Started]
