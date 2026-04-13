@@ -1,0 +1,61 @@
+= Pod Disruption Budgets (PDB)
+
+Pod disruption budgets allow users to configure how many voluntary disruptions (pod restarts) an application can tolerate if all pods are healthy.
+PDBs are taken into account by Kubernetes' node drain mechanism which uses the pod eviction API.
+However, other operations (such as rolling upgrades of a Deployment) don't adhere to the constraints defined by PDBs.
+
+The https://kubernetes.io/docs/concepts/workloads/pods/disruptions[Kubernetes documentation on disruptions] has a more complete description of what counts as a voluntary disruption in Kubernetes and how PDBs can guard applications against such disruptions.
+
+While pod disruption budgets allow users to ensure that highly available applications run smoothly on Kubernetes, some aspects of PDBs tend to impact operation of the cluster itself.
+The rest of this document discusses the impact of badly configured PDBs on cluster maintenance and provides some VSHN recommendations on how to effectively use PDBs without impacting cluster operations.
+
+== Impact on maintenance of VSHN Managed OpenShift
+
+A badly configured PDB can completely block node drains during maintenance of VSHN Managed OpenShift.
+If such a PDB is present on a cluster, a VSHN maintenance engineer will be alerted and will have to resolve the blocked maintenance manually.
+
+Usually, the maintenance engineer will unblock the node drain by manually deleting the pod which is blocking a node drain due to a badly configured PDB.
+For persistent cases, VSHN may enable "node force drain" (which circumvents the pod eviction API and ignores PDBs) for pods which are known to block node drains due to a badly configured PDB.
+
+=== Checking for PDBs that will block node drains
+
+You can check if a PDB will block node drains by checking the output of `kubectl get pdb`.
+Any PDBs which show `0` in column `ALLOWED DISRUPTIONS` should be inspected closely since they're likely to block node drains.
+
+A PDB with zero allowed disruptions indicates that the application currently has unhealthy pods or that the PDB is configured in such a way that it doesn't allow any application pod restarts.
+The latter case is the one that will block node drains for nodes that host pods of the application targeted by the PDB.
+
+== VSHN recommended practices for operator-managed PDBs
+
+Many Kubernetes operators will configure PDBs for the application that they orchestrate.
+Usually those operators will configure PDBs which are only suitable for application deployments with two or more replicas, such as a PDB with `spec.minAvailable=1`.
+
+Some operators will not configure a PDB for single replica application instances.
+For such operators, no special care is necessary.
+
+Similarly, if an operator creates a PDB that gracefully degrades for single replica instances (for example by setting `spec.maxUnavailable=1` rather than `spec.minAvailable=1`), no special care is necessary.
+
+However, other operators will configure a PDB for single replica application instances which doesn't allow the application pod to be restarted.
+For such operators, special care must be taken.
+Some operators have an explicit flag in their application custom resource to disable PDB creation.
+If such a flag is available, it should always be used when creating single replica application instances.
+
+If an operator doesn't create a PDB that gracefully degrades for single replica instances, doesn't automatically omit the PDB for single replica instances, and doesn't allow users to explicitly opt out of PDB creation, the best option is to not deploy single replica instances.
+
+== VSHN recommended practices for user-defined PDBs
+
+When deploying applications via Helm chart, any PDBs created by the chart should be inspected closely, especially when deploying an application with a single replica via Helm chart.
+Many Helm charts also allow explicitly enabling or disabling PDBs, and just as for applications managed by an operator, PDBs should always be disabled when deploying single replica instances.
+
+If a chart doesn't support any PDB customizations, and unconditionally deploys a PDB that blocks node drains (see section <<Checking for PDBs that will block node drains,checking for PDBs that will block node drains>>), we recommend that you patch or remove such PDBs by hand after any `helm install` or `helm upgrade`.
+
+When you create PDBs by hand, you should prefer setting `spec.maxUnavailable` to a value greater than 0, rather than using `spec.minAvailable` since `maxUnavailable` behaves more gracefully for single replica deployments.
+
+IMPORTANT: You should never create a PDB with `spec.maxUnavailable=0` or with `spec.minAvailable` equal to `spec.replicas` of the deployment targeted by the PDB.
+
+For test and development environments, we recommend configuring all PDBs with `spec.unhealthyPodEvictionPolicy=AlwaysAllow` so that pods in `CrashLoopBackOff` don't block node drains.
+
+== References
+
+* https://kubernetes.io/docs/concepts/workloads/pods/disruptions/#pod-disruption-budgets[Kubernetes pod disruption budgets]
+* https://kubernetes.io/docs/tasks/run-application/configure-pdb[Specifying a Disruption Budget for your Application]

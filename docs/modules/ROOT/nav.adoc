@@ -1,5 +1,8 @@
 * xref:index.adoc[Home]
 
+** Workload
+*** xref:workload/poddisruptionbudgets.adoc[]
+
 ** Network
 *** xref:network/network-policies.adoc[]
 *** xref:network/cilium-cluster-mesh.adoc[]
