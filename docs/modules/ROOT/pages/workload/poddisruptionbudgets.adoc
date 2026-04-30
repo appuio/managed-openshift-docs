@@ -17,6 +17,9 @@ If such a PDB is present on a cluster, a VSHN maintenance engineer will be alert
 Usually, the maintenance engineer will unblock the node drain by manually deleting the pod which is blocking a node drain due to a badly configured PDB.
 For persistent cases, VSHN may enable "node force drain" (which circumvents the pod eviction API and ignores PDBs) for pods which are known to block node drains due to a badly configured PDB.
 
+On clusters with "best effort" SLA, "node force drain" is enabled by default.
+Please contact VSHN support to request an exception for a specific workload.
+
 === Checking for PDBs that will block node drains
 
 You can check if a PDB will block node drains by checking the output of `kubectl get pdb`.
