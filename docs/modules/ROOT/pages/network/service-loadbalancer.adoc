@@ -1,0 +1,166 @@
+= Service Type LoadBalancer
+
+Depending on the infrastructure there are different implementations of services of type LoadBalancer.
+Check your documentation or ask your system-admin if you don't know which types are available.
+
+[NOTE]
+=====
+If you use services of type LoadBalancer you also need a NetworkPolicy or CiliumNetworkPolicy!
+=====
+
+
+== Cilium L2 Announcement
+
+L2 Announcements is a feature which makes services visible and reachable on the machine network of the cluster.
+This feature is primarily intended for on-premises deployments within networks without BGP based routing.
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    lbipam.cilium.io/ips: 192.168.1.50 <5>
+  name: your-service-lb
+  namespace: your-namespace
+spec:
+  type: LoadBalancer <1>
+  loadBalancerClass: io.cilium/l2-announcer <2>
+  selector: <3>
+    app.kubernetes.io/component: component
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/name: name
+  ports: <4>
+  - name: your-service
+    port: 10018
+    protocol: TCP
+    targetPort: 10018
+----
+<1> Use type `LoadBalancer` for the service.
+<2> Use `io.cilium/l2-announcer` as loadbalancer class.
+<3> Define the selector associated with your deployment.
+<4> Define the port you want to expose, just like with a regular service.
+<5> Optional: You can request a specific IP within the clusters machine network.
+
+
+== Cilium BGP Announcement
+
+L2 Announcements is a feature which makes services visible and reachable on the machine network of the cluster.
+This feature is primarily intended for on-premises deployments within networks without BGP based routing.
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  annotations:
+    lbipam.cilium.io/ips: 192.168.1.50 <5>
+  name: your-service-lb
+  namespace: your-namespace
+spec:
+  type: LoadBalancer <1>
+  loadBalancerClass: io.cilium/bgp-control-plane <2>
+  selector: <3>
+    app.kubernetes.io/component: component
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/name: name
+  ports: <4>
+  - name: your-service
+    port: 10018
+    protocol: TCP
+    targetPort: 10018
+----
+<1> Use type `LoadBalancer` for the service.
+<2> Use `io.cilium/bgp-control-plane` as loadbalancer class.
+<3> Define the selector associated with your deployment.
+<4> Define the port you want to expose, just like with a regular service.
+<5> Optional: You can request a specific IP within the clusters machine network.
+
+
+== Cloudscale LoadBalancer
+
+A Cloudscale LoadBalancer consists of a redundant pair of virtual servers.
+Externally, they share an IP address, which is active on one of the two systems and is seamlessly moved to the other system if a problem is detected.
+
+[NOTE]
+=====
+If Cloudscale LoadBalancer are available you don't need to choose a specific `loadBalancerClass`!
+=====
+
+[source,yaml]
+----
+apiVersion: v1
+kind: Service
+metadata:
+  name: your-service-lb
+  namespace: your-namespace
+spec:
+  type: LoadBalancer <1>
+  selector: <2>
+    app.kubernetes.io/component: component
+    app.kubernetes.io/instance: instance
+    app.kubernetes.io/name: name
+  ports: <3>
+  - name: your-service
+    port: 10018
+    protocol: TCP
+    targetPort: 10018
+----
+<1> Use type `LoadBalancer` for the service.
+<2> Define the selector associated with your deployment.
+<3> Define the port you want to expose, just like with a regular service.
+
+
+== NetworkPolicy for Services of Type LoadBalancer
+
+Services of type LoadBalancer also require a NetworkPolicy _or_ a CiliumNetworkPolicy to allow connections.
+
+----
+apiVersion: networking.k8s.io/v1
+kind: NetworkPolicy
+metadata:
+  name: allow-your-service-lb
+  namespace: your-namespace
+spec:
+  podSelector: <1>
+    matchLabels:
+      app.kubernetes.io/component: component
+      app.kubernetes.io/instance: instance
+      app.kubernetes.io/name: name
+  policyTypes:
+  - Ingress
+  ingress:
+  - from: <2>
+    - ipBlock:
+        cidr: 0.0.0.0/0
+    ports: <3>
+    - port: 10018
+      protocol: TCP
+----
+<1> Define the selector associated with your deployment.
+<2> Allow access from `world`.
+<3> Define the port you want to expose.
+
+----
+apiVersion: cilium.io/v2
+kind: CiliumNetworkPolicy
+metadata:
+  name: allow-your-service-lb
+  namespace: your-namespace
+spec:
+  endpointSelector: <1>
+    matchLabels:
+      app.kubernetes.io/component: component
+      app.kubernetes.io/instance: instance
+      app.kubernetes.io/name: name
+  ingress:
+  - fromEntities: <2>
+    - world
+    toPorts:
+    - ports: <3>
+      - port: 10018
+        protocol: TCP
+----
+<1> Define the selector associated with your deployment.
+<2> Allow access from `world`.
+<3> Define the port you want to expose.
