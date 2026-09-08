@@ -1,0 +1,132 @@
+= Application backup and restore using OADF
+
+OpenShift APIs for Data Protection (OADP) allows users to back up their on-cluster resources, including persisten volume data, to external S3 storage.
+
+VSHN offers OADP as an optional cluster add-on.
+
+[NOTE]
+====
+The custom resources that govern OADF backups are called `Backup`, `Schedule` and `Restore`.
+These names often conflict with other custom resources, such as `backup.k8s.mariadb.com` or `backup.k8up.io`.
+For that reason, we recommend to always explicitly specify the API group when accessing OADP resources.
+====
+
+== Prerequisites
+Configuring backups and backup schedules with OADF requires cluster admin permissions.
+To create namespace-scoped backups without cluster admin permissions, see xref:openshift-adp/howto-nonadmin-backup-and-restore.adoc[Create and Restore Backups as Namespace Admin].
+
+
+== Backing up a namespace with OADF
+
+To create a new backup, a `backup.velero.io` object is created in the `openshift-adp` namespace.
+The `Backup` specifies which resources to include in the backup.
+
+[source,yaml]
+--
+apiVersion: velero.io/v1
+kind: Backup
+metadata:
+  name: my-backup <1>
+  namespace: openshift-adp
+spec:
+  hooks: {} <2>
+  includedNamespaces:
+  - my-namespace <3>
+  includedResources: [] <3>
+  excludedResources: [] <3>
+  ttl: 10h0m0s <4>
+  labelSelector: <5>
+    matchLabels:
+      app: my-app
+--
+<1> Unique name for your backup.
+<2> Optionally configure hooks that are run before or after your backup is performed.
+For more information, see https://docs.redhat.com/en/documentation/openshift_container_platform/4.12/html/backup_and_restore/oadp-application-backup-and-restore#oadp-creating-backup-hooks-doc[the upstream documentation on backup hooks].
+<3> Explicitly list which Kubernetes resources are included or excluded in your backup.
+If these parameters are both omitted, all resources are backed up.
+<4> The TTL, or retention time, of your backup.
+If your backup is older than its TTL, it is automatically deleted.
+<5> If specified, only objects with the appropriate labels are included in the backup.
+If omitted, all objects are included.
+
+Once created, monitor your backup's status:
+
+[source,bash]
+--
+kubectl get backup.velero.io -nopenshift-adp my-backup -o jsonpath="{.status.phase}"
+--
+
+Once the phase is listed as `Completed`, the backup has succeeded.
+
+== Creating a backup schedule
+
+Backups can be created automatically on a schedule using the `schedule.velero.io` custom resource:
+
+[source,yaml]
+--
+apiVersion: velero.io/v1
+kind: Schedule
+metadata:
+  name: my-schedule <1>
+  namespace: openshift-adp
+spec:
+  schedule: 0 7 * * *  1 <2>
+  template: <3>
+    includedNamespaces:
+    - <namespace>
+    ...
+--
+<1> Unique name for your backup schedule
+<2> Cron expression to schedule the backup
+<3> Template for the `backup.velero.io` spec
+
+== Restoring a backup with OADF
+
+WARNING: Restoring a backup will overwrite any existing resources that are part of the backup, even if they are still present on the cluster.
+
+To restore a backup, first identify the name of the backup you want to restore:
+
+[source,bash]
+--
+kubectl get backup.velero.io -nopenshift-adp -o=custom-columns='NAME:metadata.name,PHASE:status.phase
+--
+
+Once you've identified the backup, create a `restore.velero.io` object to initiate a restore:
+
+[source,yaml]
+--
+apiVersion: velero.io/v1
+kind: Restore
+metadata:
+  name: my-restore <1>
+  namespace: openshift-adp
+spec:
+  backupName: my-backup <2>
+  excludedResources: <3>
+  - nodes
+  - events
+  - events.events.k8s.io
+  - backups.velero.io
+  - restores.velero.io
+  - resticrepositories.velero.io
+  restorePVs: true <4>
+--
+<1> Unique name for your backup schedule
+<2> Name of the specific `backup.velero.io` object you wish to restore
+<3> List of resource types to exclude from the restore.
+The given list is a recommendation, as the listed resources can cause problems when restored blindly.
+<4> Whether to restore persistent volume backups as well.
+If set to `false`, the resources are restored with empty PVs.
+
+Monitor the status of the `restore.velero.io` object:
+[source,bash]
+--
+kubectl get restore.velero.io -nopenshift-adp my-restore -o jsonpath='{.status.phase}'
+--
+
+When the phase becomes `Completed`, the restore has been successful.
+Investigate the restored resources to ensure everything is in working order.
+
+== Further information
+
+For a more in-depth look at OADP, please refer to the https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/backup_and_restore/oadp-application-backup-and-restore[upstream documentation].

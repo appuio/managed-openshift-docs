@@ -1,0 +1,18 @@
+= Backups with OpenShift APIs for Data Protection (OADP)
+
+OADP provides a unified API to back up resources on an OpenShift cluster.
+It is capable of backing up cluster objects as well as persistent volume data.
+
+The backups are stored to external S3 storage.
+
+// == Limitations
+// TODO(aa): This section should detail the limitations of OADP as managed by VSHN, such as:
+// - Where is the S3 storage, and what does that mean for redundancy?
+//   (e.g. if the S3 storage is on the same CSP, we're not safe from full CSP outage)
+// - Backup frequency vs. storage cost
+// - TTL for non-admin backups (and other possible restrictions we might define)
+// - Which CSI drivers support volume snapshots
+
+== Official Documentation
+
+* https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/backup_and_restore/oadp-application-backup-and-restore[OpenShift OADP]
