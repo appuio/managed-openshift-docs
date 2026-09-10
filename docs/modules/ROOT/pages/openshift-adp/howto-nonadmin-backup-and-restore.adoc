@@ -1,0 +1,207 @@
+= Application backup and restore using OADP Self-Service
+
+OpenShift APIs for Data Protection (OADP) allows users to back up their on-cluster resources, including persisten volume data, to external S3 storage.
+Using OADP normally, however, requires cluster admin permissions.
+
+For users without cluster admin permissions, the self-service mode of OADP can be used, which allows the creation of namespace-scoped backup and restore operations.
+These `NonAdminBackup` and `NonAdminRestore` objects can be created inside a given namespaceby anyone with permission to create objects in said namespace, and they can only back up and restore objects from that namespace.
+
+VSHN offers OADP as an optional cluster add-on.
+If OADP is enabled, then the ability to use self-service backups is enabled by default.
+
+== Backing up a namespace with OADF Self-Service
+
+To create a new backup, a `NonAdminBackup` object is created in the namespace you wish to back up.
+The `NonAdminBackup` specifies which resources to include in the backup.
+
+[source,yaml]
+--
+apiVersion: oadp.openshift.io/v1alpha1
+kind: NonAdminBackup
+metadata:
+  name: my-nonadmin-backup
+  namespace: my-namespace
+spec:
+  backupSpec: <1>
+    hooks: {} <2>
+    includedNamespaces:
+    - my-namespace <3>
+    includedResources: [] <4>
+    excludedResources: [] <4>
+    ttl: 10h0m0s <5>
+    labelSelector: <6>
+      matchLabels:
+        app: my-app
+--
+<1> The self-service backup operator will create a `backup.velero.io` object for you.
+In `spec.backupSpec`, you can define the spec for that object.
+<2> Optionally configure hooks that are run before or after your backup is performed.
+For more information, see https://docs.redhat.com/en/documentation/openshift_container_platform/4.12/html/backup_and_restore/oadp-application-backup-and-restore#oadp-creating-backup-hooks-doc[the upstream documentation on backup hooks].
+<3> List the namespace in which the `NonAdminBackup` is created.
+The backup will fail if this namespace does not match the namespace of the `NonAdminBackup`.
+<4> Explicitly list which Kubernetes resources are included or excluded in your backup.
+If these parameters are both omitted, all resources are backed up.
+<5> The TTL, or retention time, of your backup.
+If your backup is older than its TTL, it is automatically deleted.
+<6> If specified, only objects with the appropriate labels are included in the backup.
+If omitted, all objects are included.
+
+Once created, monitor your backup's status:
+
+[source,bash]
+--
+kubectl get nab my-nonadmin-backup -w
+--
+
+When the backup has succeeded, the `REQUEST-PHASE` will be listed as `Created`, and the `VELERO-PHASE` will say `Completed`.
+
+[NOTE]
+====
+`NonAdminBackups` have to adhere to administrator-imposed restrictions on certain fields in the `.spec.backupSpec`.
+For example, the `ttl` field might be constrained to a specific value.
+
+If your backup's `REQUEST-STATE` gets stuck in `BackingOff`, it might be that your `spec.backupSpec` is violating these constraints.
+To find out why your backup was rejected, check the status conditions of the `NonAdminBackup` object.
+====
+
+== Creating a backup schedule
+
+Currently, the self-service backup operator does not provide a native way to create backups on a schedule.
+As a workaround, a `CronJob` can be used to spawn `Jobs` which in turn generate `NonAdminBackup` objects.
+
+As an example, a backup `CronJob` could be configured as follows:
+
+[source,yaml]
+--
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: backup-template
+  namespace: my-namespace <1>
+data:
+  backup.yaml: | <2>
+    apiVersion: oadp.openshift.io/v1alpha1
+    kind: NonAdminBackup
+    metadata:
+      name: myapp-backup-<TIMESTAMP> <3>
+      namespace: my-namespace <1>
+    spec:
+      backupSpec:
+        includedNamespaces:
+        - my-namespace <1>
+        ttl: 10h0m0s
+---
+apiVersion: v1
+kind: ServiceAccount
+metadata:
+  name: backup-creator
+  namespace: my-namespace <1>
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: Role
+metadata:
+  name: backup-creator
+  namespace: my-namespace <1>
+rules:
+- apiGroups: ["oadp.openshift.io"]
+  resources: ["nonadminbackups"]
+  verbs: ["create", "get", "list", "watch"]
+---
+apiVersion: rbac.authorization.k8s.io/v1
+kind: RoleBinding
+metadata:
+  name: backup-creator
+  namespace: my-namespace <1>
+subjects:
+- kind: ServiceAccount
+  name: backup-creator
+  namespace: my-namespace <1>
+roleRef:
+  kind: Role
+  name: backup-creator
+  apiGroup: rbac.authorization.k8s.io
+---
+apiVersion: batch/v1
+kind: CronJob
+metadata:
+  name: backup
+  namespace: my-namespace <1>
+spec:
+  schedule: "0 2 * * *" <4>
+  jobTemplate:
+    spec:
+      template:
+        spec:
+          restartPolicy: OnFailure
+          serviceAccountName: backup-creator
+          containers:
+          - name: backup
+            image: quay.io/appuio/oc:v4.21 <5>
+            command:
+            - /bin/sh
+            - -c
+            - sed "s/<TIMESTAMP>/$(date +%Y%m%d%H%M%S)/g" /config/backup.yaml | kubectl apply -f -
+            volumeMounts:
+            - name: backup-template
+              mountPath: /config
+              readOnly: true
+          volumes:
+          - name: backup-template
+            configMap:
+              name: backup-template
+
+--
+<1> Replace with the namespace containing the resources you wish to backup.
+<2> Full spec of the `NonAdminBackup` object to be created by the `CronJob`
+<3> Ensure the name contains the string `<TIMESTAMP>`.
+This will be replaced with the current timestamp, ensuring each `NonAdminBackup` has a unique name.
+<4> Modify the `cron` expression as required.
+<5> The `appuio/oc` image is provided by VSHN.
+Please ensure the image tag matches your OpenShift version to ensure compatibility.
+
+== Restoring a backup with OADP Self-Service
+
+WARNING: Restoring a backup will overwrite any existing resources that are part of the backup, even if they are still present on the cluster.
+
+To restore a backup, first identify the name of the backup you want to restore:
+
+[source,bash]
+--
+kubectl get NonAdminBackup
+--
+
+Once you've identified the backup, create a `NonAdminRestore` object to initiate a restore:
+
+[source,yaml]
+--
+apiVersion: oadp.openshift.io/v1alpha1
+kind: NonAdminRestore
+metadata:
+  name: my-nonadmin-restore
+  namespace: my-namespace <1>
+spec:
+  restoreSpec: <2>
+    backupName: my-nonadmin-backup <3>
+    restorePVs: true <4>
+--
+<1> The `NonAdminRestore` must be created in the same namespace as the corresponding `NonAdminBackup`.
+<2> The self-service backup operator will create a `restore.velero.io` object on your behalf.
+In `.spec.restoreSpec`, you can provide the spec for that object.
+<3> Name of the specific `NonAdminBackup` resource you wish to restore.
+The given list is a recommendation, as the listed resources can cause problems when restored blindly.
+<4> Whether to restore persistent volume backups as well.
+If set to `false`, the resources are restored with empty PVs.
+
+Monitor the status of the `NonAdminRestore`:
+[source,bash]
+--
+kubectl get nar -w
+--
+
+When the restore has succeeded, the `REQUEST-PHASE` will be listed as `Created`, and the `VELERO-PHASE` will say `Completed`.
+
+== Further information
+
+For more information on OADP Self-Service, please refer to the https://docs.okd.io/4.22/backup_and_restore/application_backup_and_restore/oadp-self-service/oadp-self-service-namespace-admin-use-cases.html[upstream documentation].
+
+For a more in-depth look at OADP in general, please refer to the https://docs.redhat.com/en/documentation/openshift_container_platform/4.22/html/backup_and_restore/oadp-application-backup-and-restore[official OADP documentation].

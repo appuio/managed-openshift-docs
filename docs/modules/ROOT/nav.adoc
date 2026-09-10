@@ -26,3 +26,7 @@
 
 ** OpenShift Compliance
 *** xref:openshift-compliance/howto-export-report.adoc[Review Compliance Scan Results]
+
+** xref:openshift-adp/index.adoc[OpenShift APIs for Data Protection]
+*** xref:openshift-adp/howto-backup-and-restore.adoc[Create and Restore Backups as Cluster Admin]
+*** xref:openshift-adp/howto-nonadmin-backup-and-restore.adoc[Create and Restore Backups as Namespace Admin]
